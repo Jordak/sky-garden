@@ -55,4 +55,10 @@ Sky Garden layers two purpose-built renderers inside a `16:9` viewport:
 1. **Foreground Cutaway Observatory (`src/components/ObservatoryCutawayCanvas.tsx`):** A palette-locked `320×180` HTML5 `<canvas>` (`imageSmoothingEnabled = false`, `image-rendering: pixelated`) with transparent glasshouse dome panes, integer-grid ASCII-compiled pixel sprites (`src/pixel/pixelSprites.ts`), and a crisp proportional `4×5`/`5×5` pixel bitmap font (`src/pixel/pixelFont.ts`).
 2. **Panoramic Sky Backdrop (`src/components/ObservatoryStage.tsx`):** Normalized `[0..1]` DOM/SVG sky stage behind the pixel rafters so real, unpixelated survey cutouts float naturally via non-destructive CSS `screen` blending while preserving unmodified scientific pixels in the CRT and Star Atlas viewers.
 
-See [SKY_GARDEN_HANDOFF.md](./SKY_GARDEN_HANDOFF.md) for the project brief and [PROVENANCE.md](./PROVENANCE.md) for survey attributions.
+## How This Prototype Was Built (Vibe-Coded)
+
+This prototype was vibe-coded in collaboration with an AI coding agent to rapidly explore a design question before writing any live backend integration: *does curating a personal night sky above a cozy pixel-art observatory feel rewarding enough to support real Galaxy Zoo classifications without compromising data quality?* Every mechanic, visual iteration, and citizen-science guardrail above—ungated optical inspection switches, flat answer-agnostic rewards, and strict separation between immutable survey data and decorative sky placement—was directed and reviewed by a human, backed by automated tests in `src/test/skyGarden.test.tsx`.
+
+## Licensing & Asset Provenance
+
+Application source code and original pixel-art / inline SVG scenery are licensed under the [MIT License](./LICENSE). All eight astronomical survey cutouts in `public/assets/galaxies/` are open-licensed (`CC BY 4.0`) scientific images from the DESI Legacy Imaging Surveys and Sloan Digital Sky Survey; see [PROVENANCE.md](./PROVENANCE.md) for per-object credits and survey acknowledgments.

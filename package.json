@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Milestone 1 prototype: cozy sky-decorating observatory built around Galaxy Zoo scientific guardrails",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
