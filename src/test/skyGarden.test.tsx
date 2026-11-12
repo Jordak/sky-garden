@@ -249,4 +249,52 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
       expect(reimported.state.demoMode).toBe('progression');
     }
   });
+
+  it('requires confirmation before resetting Progression Mode and leaves Sandbox untouched', () => {
+    const firstRender = render(<App />);
+
+    // Earn Stardust and hang a galaxy in Northern Window, then switch to Southern Window
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    fireEvent.click(screen.getByRole('button', { name: /HANG IN SKY AT TELESCOPE/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Southern Window/i }));
+
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('1');
+
+    // Open Reset Progression confirmation -> cancelling preserves progress
+    fireEvent.click(screen.getByTestId('top-reset-progression-btn'));
+    const dialog = screen.getByTestId('reset-confirm-dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+
+    fireEvent.click(within(dialog).getAllByRole('button', { name: /\[ESC\] CANCEL/i })[0]);
+    expect(screen.queryByTestId('reset-confirm-dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('1');
+
+    // Confirm reset -> returns everything to zero and restores North hemisphere
+    fireEvent.click(screen.getByTestId('top-reset-progression-btn'));
+    fireEvent.click(screen.getByTestId('confirm-reset-btn'));
+
+    expect(screen.queryByTestId('reset-confirm-dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('0 STARDUST');
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('0');
+
+    // Star Atlas is empty again
+    fireEvent.click(screen.getByRole('button', { name: /STAR ATLAS/i }));
+    expect(screen.getByTestId('atlas-empty-state')).toBeInTheDocument();
+
+    // Reload persists clean reset, while Sandbox remains untouched
+    firstRender.unmount();
+    render(<App />);
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('0 STARDUST');
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('4');
+    expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveTextContent('3');
+  });
 });

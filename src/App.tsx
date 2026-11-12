@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClassificationCrtModal } from './components/ClassificationCrtModal';
 import { ObservatoryCutawayCanvas } from './components/ObservatoryCutawayCanvas';
 import { ObservatoryStage } from './components/ObservatoryStage';
+import { ResetConfirmModal } from './components/ResetConfirmModal';
 import { SkyEditSatchelHud } from './components/SkyEditSatchelHud';
 import { StarAtlasModal } from './components/StarAtlasModal';
 import { WorkbenchModal } from './components/WorkbenchModal';
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
 
   const [activeStation, setActiveStation] = useState<StationId | null>(null);
   const [exhibitionMode, setExhibitionMode] = useState<boolean>(false);
+  const [confirmingReset, setConfirmingReset] = useState<boolean>(false);
   const [statusToast, setStatusToast] = useState<string | null>(null);
 
   const skyEditMode = activeStation === 'telescope' && !exhibitionMode;
@@ -171,7 +173,10 @@ export const App: React.FC = () => {
       }
 
       if (e.key === 'Escape') {
-        if (exhibitionMode) {
+        if (confirmingReset) {
+          e.preventDefault();
+          setConfirmingReset(false);
+        } else if (exhibitionMode) {
           e.preventDefault();
           setExhibitionMode(false);
         } else if (activeStation !== null) {
@@ -183,7 +188,7 @@ export const App: React.FC = () => {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeStation, exhibitionMode, redo, undo]);
+  }, [activeStation, confirmingReset, exhibitionMode, redo, undo]);
 
   const handleExportJson = () => {
     const json = serializeScenesToJson(scenesState);
@@ -235,6 +240,7 @@ export const App: React.FC = () => {
                     aria-pressed={scenesState.demoMode === 'progression'}
                     className={`pixel-hud-btn ${scenesState.demoMode === 'progression' ? 'is-active' : ''}`}
                     onClick={() => {
+                      setConfirmingReset(false);
                       setActiveStation(null);
                       switchDemoMode('progression');
                     }}
@@ -248,6 +254,7 @@ export const App: React.FC = () => {
                     aria-pressed={scenesState.demoMode === 'sandbox'}
                     className={`pixel-hud-btn ${scenesState.demoMode === 'sandbox' ? 'is-active' : ''}`}
                     onClick={() => {
+                      setConfirmingReset(false);
                       setActiveStation(null);
                       switchDemoMode('sandbox');
                     }}
@@ -347,11 +354,23 @@ export const App: React.FC = () => {
                   : '✦ SANDBOX'}
               </span>
             )}
+            {!exhibitionMode && scenesState.demoMode === 'progression' && (
+              <button
+                type="button"
+                data-testid="top-reset-progression-btn"
+                className="pixel-hud-btn btn-reset"
+                onClick={() => setConfirmingReset(true)}
+                title="Reset Progression Mode back to zero (asks for confirmation)"
+              >
+                ↺ RESET PROGRESSION
+              </button>
+            )}
             <button
               type="button"
               aria-pressed={exhibitionMode}
               className={`pixel-hud-btn btn-gold ${exhibitionMode ? 'is-active' : ''}`}
               onClick={() => {
+                setConfirmingReset(false);
                 setActiveStation(null);
                 setExhibitionMode((v) => !v);
               }}
@@ -503,8 +522,26 @@ export const App: React.FC = () => {
             onSelectOrUnlockAppearance={handleSelectOrUnlockAppearance}
             onExportJson={handleExportJson}
             onImportJsonFile={handleImportFile}
-            onResetDemo={resetStarterScenes}
+            onResetDemo={() => setConfirmingReset(true)}
             onClose={() => setActiveStation(null)}
+          />
+        )}
+
+        {confirmingReset && (
+          <ResetConfirmModal
+            demoMode={scenesState.demoMode}
+            onCancel={() => setConfirmingReset(false)}
+            onConfirm={() => {
+              const modeBeforeReset = scenesState.demoMode;
+              resetStarterScenes();
+              setConfirmingReset(false);
+              setActiveStation(null);
+              setStatusToast(
+                modeBeforeReset === 'progression'
+                  ? 'Progression Mode reset to a fresh start.'
+                  : 'Sandbox Mode restored to starter showcase.',
+              );
+            }}
           />
         )}
         </div>

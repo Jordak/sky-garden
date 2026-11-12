@@ -303,6 +303,18 @@ input {
   box-shadow: 2px 2px 0 #000000;
 }
 
+.pixel-hud-btn.btn-reset {
+  background: #24131c;
+  border-color: #7c3b4a;
+  color: #ffcbd2;
+}
+
+.pixel-hud-btn.btn-reset:hover {
+  background: #361926;
+  border-color: var(--danger-rose);
+  color: #ffffff;
+}
+
 .pixel-hud-btn {
   padding: 4px 8px;
   background: #10152b;
@@ -1209,6 +1221,28 @@ input {
 .crt-choice-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.pixel-modal-backdrop.is-confirm-layer {
+  z-index: 30;
+}
+
+.reset-confirm-frame {
+  width: min(460px, 94%);
+  border-color: var(--danger-rose);
+}
+
+.reset-confirm-copy {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.48;
+  color: var(--text-main);
+}
+
+.reset-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 @media (max-width: 860px) {

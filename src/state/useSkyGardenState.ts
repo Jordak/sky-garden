@@ -680,7 +680,7 @@ export function useSkyGardenState() {
       mode === 'progression' ? createInitialProgressionState() : createInitialSandboxState();
     const next: SavedScenesState = {
       ...starter,
-      selectedScene: scenesRef.current.selectedScene,
+      selectedScene: starter.selectedScene,
       updatedAtIso: new Date().toISOString(),
     };
     scenesRef.current = next;

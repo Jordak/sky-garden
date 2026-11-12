@@ -168,7 +168,7 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                   IMPORT JSON
                 </button>
                 <button type="button" className="pixel-mini-btn btn-danger" onClick={onResetDemo}>
-                  RESET DEMO
+                  {demoMode === 'progression' ? 'RESET PROGRESSION' : 'RESET SANDBOX'}
                 </button>
                 <input
                   ref={fileInputRef}
