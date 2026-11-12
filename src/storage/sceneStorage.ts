@@ -15,6 +15,7 @@ import {
 } from '../data/demoCatalog';
 import type {
   DemoMode,
+  PanoptesAnnotation,
   PlacedObject,
   PlacedObjectKind,
   PracticeObservation,
@@ -203,6 +204,24 @@ function sanitizeRoomProps(raw: unknown): RoomPropId[] {
   return Array.from(new Set(valid));
 }
 
+function sanitizeAnnotations(raw: unknown): PanoptesAnnotation[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const annotations: PanoptesAnnotation[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) continue;
+    if (typeof entry.task !== 'string' || typeof entry.value !== 'number' || !Number.isFinite(entry.value)) {
+      continue;
+    }
+    annotations.push({
+      task: entry.task,
+      value: Math.trunc(entry.value),
+      ...(typeof entry.taskLabel === 'string' ? { taskLabel: entry.taskLabel } : {}),
+      ...(typeof entry.answerLabel === 'string' ? { answerLabel: entry.answerLabel } : {}),
+    });
+  }
+  return annotations.length > 0 ? annotations : undefined;
+}
+
 function sanitizePracticeLog(raw: unknown): PracticeObservation[] {
   if (!Array.isArray(raw)) return [];
   const list: PracticeObservation[] = [];
@@ -211,12 +230,18 @@ function sanitizePracticeLog(raw: unknown): PracticeObservation[] {
     if (typeof item.sourceGalaxyId !== 'string' || !VALID_SOURCE_IDS.has(item.sourceGalaxyId)) {
       continue;
     }
+    const annotations = sanitizeAnnotations(item.annotations);
     list.push({
       sourceGalaxyId: item.sourceGalaxyId,
       primaryMorphology:
         typeof item.primaryMorphology === 'string' ? item.primaryMorphology : 'Observed',
       detailChoice: typeof item.detailChoice === 'string' ? item.detailChoice : '',
       oddityNote: typeof item.oddityNote === 'string' ? item.oddityNote : 'None',
+      ...(typeof item.workflowId === 'string' ? { workflowId: item.workflowId } : {}),
+      ...(typeof item.workflowVersion === 'string'
+        ? { workflowVersion: item.workflowVersion }
+        : {}),
+      ...(annotations ? { annotations } : {}),
       observedAtIso:
         typeof item.observedAtIso === 'string' ? item.observedAtIso : new Date().toISOString(),
     });

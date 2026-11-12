@@ -12,6 +12,16 @@ import {
   STORAGE_KEY,
 } from '../storage/sceneStorage';
 
+function completeQuickClassification() {
+  fireEvent.click(screen.getByRole('button', { name: /Features or Disk/i }));
+  fireEvent.click(screen.getByRole('button', { name: /No — Face-On \/ Inclined/i }));
+  fireEvent.click(screen.getByRole('button', { name: /Strong Bar/i }));
+  fireEvent.click(screen.getByRole('button', { name: /Yes — Spiral Arms/i }));
+  fireEvent.click(screen.getByRole('button', { name: /Tightly Wound/i }));
+  fireEvent.click(screen.getByRole('button', { name: /None — Undisturbed/i }));
+  fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+}
+
 describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -43,7 +53,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     expect(invertBtn).toHaveAttribute('aria-pressed', 'true');
 
     // Classify first incoming subject -> unlocks NGC 1300 + grants +3 Stardust
-    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    completeQuickClassification();
     expect(screen.getByText(/PRACTICE OBSERVATION LOGGED — UNLOCKED NGC 1300/i)).toBeInTheDocument();
     expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
 
@@ -51,7 +61,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     fireEvent.click(screen.getByRole('button', { name: /LEAVE DESK/i }));
     fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
     fireEvent.click(screen.getByRole('button', { name: /◀ PREV/i }));
-    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    completeQuickClassification();
     expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
 
     // Star Atlas now contains only NGC 1300 (discovery-driven)
@@ -78,7 +88,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
 
     // Earn 1 galaxy & +3 Stardust in Progression Mode
     fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    completeQuickClassification();
     fireEvent.click(screen.getByRole('button', { name: /HANG IN SKY AT TELESCOPE/i }));
     expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('1');
     expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
@@ -255,7 +265,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
 
     // Earn Stardust and hang a galaxy in Northern Window, then switch to Southern Window
     fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    completeQuickClassification();
     fireEvent.click(screen.getByRole('button', { name: /HANG IN SKY AT TELESCOPE/i }));
     fireEvent.click(screen.getByRole('button', { name: /Southern Window/i }));
 
@@ -294,6 +304,8 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     render(<App />);
     expect(screen.getByTestId('stardust-counter')).toHaveTextContent('0 STARDUST');
     fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('4');
+    fireEvent.click(screen.getByRole('button', { name: /Southern Window/i }));
     expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('4');
     expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveTextContent('3');
   });
@@ -335,7 +347,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     expect(screen.getByText(/BLINK COMPARATOR MK-II/i)).toBeInTheDocument();
 
     // Post-classification status box and Star Atlas expose Survey Source & Galaxy Zoo Talk links
-    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    completeQuickClassification();
     const statusBox = screen.getByRole('status');
     expect(within(statusBox).getByRole('link', { name: /SURVEY SOURCE/i })).toHaveAttribute(
       'href',
@@ -369,7 +381,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
 
     fireEvent.click(screen.getByTestId('mode-progression-btn'));
     fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    completeQuickClassification();
     expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
     expect(window.localStorage.getItem(STORAGE_KEY)).not.toBeNull();
     expect(window.localStorage.getItem(PROGRESSION_STORAGE_KEY)).not.toBeNull();
@@ -393,5 +405,127 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     // Sandbox falls back cleanly to its default starfield showcase
     fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
     expect(screen.getByTestId('backdrop-starfield')).toBeInTheDocument();
+  });
+
+  it('walks the Panoptes-shaped branching decision tree with zero pre-selected defaults, Back navigation, and persisted annotations', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+
+    // Zero pre-selected answers and submit disabled until terminal step
+    const logBtn = screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i });
+    expect(logBtn).toBeDisabled();
+    const initialGroup = screen.getByRole('group', {
+      name: /Is the central galaxy simply smooth and rounded/i,
+    });
+    for (const choiceBtn of within(initialGroup).getAllByRole('button')) {
+      expect(choiceBtn).toHaveAttribute('aria-pressed', 'false');
+    }
+
+    // Walk full multi-step branch and revise T5_WINDING via Back
+    fireEvent.click(screen.getByRole('button', { name: /Features or Disk/i }));
+    fireEvent.click(screen.getByRole('button', { name: /No — Face-On \/ Inclined/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Strong Bar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Yes — Spiral Arms/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Loosely Wound \/ Open/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /◀ BACK/i }));
+    expect(screen.getByRole('button', { name: /Loosely Wound \/ Open/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Tightly Wound/i }));
+
+    // Still disabled on T6_MERGER until a final answer is picked
+    expect(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /Merging \/ Tidal Bridge/i }));
+    expect(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+
+    const stored = loadScenesFromStorage(undefined, 'progression').state;
+    expect(stored.practiceLog).toHaveLength(1);
+    expect(stored.practiceLog[0].workflowId).toBe('gz-panoptes-demo-v2');
+    expect(stored.practiceLog[0].annotations?.map((a) => a.task)).toEqual([
+      'T0',
+      'T2_EDGE',
+      'T3_BAR',
+      'T4_SPIRAL',
+      'T5_WINDING',
+      'T6_MERGER',
+    ]);
+
+    const roundTrip = parseImportedScenesJson(serializeScenesToJson(stored));
+    expect('state' in roundTrip).toBe(true);
+    if ('state' in roundTrip) {
+      expect(roundTrip.state.practiceLog[0].annotations).toHaveLength(6);
+    }
+
+    // Advance to next incoming subject and verify 1-step terminal Star/Artifact path also grants flat +3 Stardust
+    fireEvent.click(screen.getByRole('button', { name: /NEXT INCOMING SUBJECT ▶/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Star or Artifact/i }));
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('6 STARDUST');
+  });
+
+  it('supports ungated Field Guide, 1x/2x/4x zoom with clamped drag-panning, and real-time brightness/contrast stretch', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+
+    // Toggle contextual Field Guide on T0, then verify it updates on T1_SMOOTH
+    fireEvent.click(screen.getByTestId('crt-field-guide-toggle'));
+    expect(screen.getByTestId('crt-field-guide-drawer')).toHaveTextContent(
+      /Light falls off evenly from a glowing center/i,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Smooth & Rounded/i }));
+    expect(screen.getByTestId('crt-field-guide-drawer')).toHaveTextContent(/Completely Round/i);
+
+    // Zoom 1x -> 4x, verify dynamic arcmin scale & clamped drag-panning
+    const viewport = screen.getByTestId('crt-optical-viewport');
+    const plateImg = within(viewport).getByRole('img');
+    const oneXScaleText = viewport.textContent ?? '';
+    const oneXArcmin = parseFloat(oneXScaleText.match(/([\d.]+)′ arcmin/)?.[1] ?? '0');
+    expect(oneXArcmin).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /Zoom 4x/i }));
+    const fourXArcmin = parseFloat((viewport.textContent ?? '').match(/([\d.]+)′ arcmin/)?.[1] ?? '0');
+    expect(fourXArcmin).toBeCloseTo(oneXArcmin / 4, 2);
+
+    const dispatchPointer = (
+      target: Element,
+      type: 'pointerdown' | 'pointermove' | 'pointerup',
+      clientX: number,
+      clientY: number,
+    ) => {
+      const evt = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX,
+        clientY,
+      });
+      Object.defineProperty(evt, 'pointerId', { value: 1 });
+      fireEvent(target, evt);
+    };
+
+    dispatchPointer(viewport, 'pointerdown', 100, 100);
+    dispatchPointer(viewport, 'pointermove', 700, -600);
+    dispatchPointer(viewport, 'pointerup', 700, -600);
+    expect(plateImg.style.transform).toBe('translate(150.0%, -150.0%) scale(4)');
+
+    fireEvent.click(screen.getByRole('button', { name: /RESET VIEW/i }));
+    expect(plateImg.style.transform).toBe('translate(0.0%, 0.0%) scale(1)');
+
+    // Stretch preset + sliders + invert + flat reset
+    fireEvent.click(screen.getByRole('button', { name: /FAINT SHELLS/i }));
+    fireEvent.click(screen.getByRole('button', { name: /INVERT/i }));
+    fireEvent.change(screen.getByTestId('crt-brightness-slider'), { target: { value: '140' } });
+    fireEvent.change(screen.getByTestId('crt-contrast-slider'), { target: { value: '185' } });
+    expect(plateImg.style.filter).toBe(
+      'invert(1) hue-rotate(180deg) brightness(1.40) contrast(1.85)',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /FLAT/i }));
+    expect(plateImg.style.filter).toBe('none');
   });
 });

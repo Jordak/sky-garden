@@ -140,11 +140,21 @@ export interface SceneComposition {
   readonly objects: readonly PlacedObject[];
 }
 
+export interface PanoptesAnnotation {
+  readonly task: string;
+  readonly value: number;
+  readonly taskLabel?: string;
+  readonly answerLabel?: string;
+}
+
 export interface PracticeObservation {
   readonly sourceGalaxyId: string;
   readonly primaryMorphology: string;
   readonly detailChoice: string;
   readonly oddityNote: string;
+  readonly workflowId?: string;
+  readonly workflowVersion?: string;
+  readonly annotations?: readonly PanoptesAnnotation[];
   readonly observedAtIso: string;
 }
 

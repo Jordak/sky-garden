@@ -10,7 +10,7 @@ Play the hosted demo directly in any desktop browser with no download required: 
 
 ## Scientific Integrity Guardrails
 
-- **Ungated Optical Inspection:** Hardware switches (`Invert`, `Contrast`, `2× Core`, `Arcmin Scale`) are unlocked from second zero and never sold or gated behind rewards.
+- **Ungated Optical Inspection:** Real-time zoom (`1×` / `2×` / `4×` + drag pan), brightness/contrast stretch presets & sliders, `Invert`, and `Arcmin Scale` are unlocked from second zero and never sold or gated behind rewards.
 - **Zero Accuracy or Speed Pressure:** Each unique subject awards a flat, answer-agnostic `+3 ✦ Stardust` once upon completion with zero streak multipliers, countdowns, or speed bonuses.
 - **Immutable Scientific Source & Verified Coordinates:** Cutout pixels and verified `ICRS (J2000)` metadata live strictly on immutable `SourceGalaxy` records (`withheld`/`unverified` coordinates stay omitted rather than fabricated), completely separate from decorative sky placements (`PlacedGalaxy`).
 - **Clear Offline Practice Boundary:** Every classification action is explicitly labeled offline practice so volunteers never mistake sandbox interactions for live Galaxy Zoo consensus votes.
@@ -43,7 +43,7 @@ npm run preview   # Serve the production build locally
 ## Controls & Stations
 
 - **Move & Hop:** `A` / `D` or `←` / `→` to walk across the observatory deck, `Space` to hop, and `E` / `Enter` / `W` (or clicking any station) to interact.
-- **Blink Comparator CRT Desk (Left):** Run clearly labeled offline practice classifications on real survey cutouts with ungated hardware switches (`Invert`, `Contrast`, `2× Core`, `Arcmin Scale`), then hang the studied galaxy in your sky.
+- **Blink Comparator CRT Desk (Left):** Run clearly labeled offline practice classifications through a Panoptes-shaped branching decision tree with a collapsible Field Guide, real-time brightness/contrast stretch presets & sliders, and `1×`/`2×`/`4×` zoom & pan, then hang the studied galaxy in your sky.
 - **Illuminated Star Atlas (Center-Left):** Inspect all eight bundled `512×512` cutouts, provenance, and verified `ICRS (J2000)` coordinates on an all-sky celestial chart (or honest unavailability notices when coordinates are omitted/unverified).
 - **Brass Telescope on Dais (Center):** Enter Sky-Curator mode to drag, scale, rotate, reorder, or keyboard-nudge (`Arrows`, `+/-`, `[/]`, `PageUp/PageDown`, `Del`) galaxies directly in the live sky dome overhead.
 - **Dome Compass Wheel (Center-Right):** Rotate the observatory dome between independent **Northern** and **Southern** sky compositions.
