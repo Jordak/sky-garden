@@ -151,4 +151,26 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     const reimported = parseImportedScenesJson(exported);
     expect('state' in reimported).toBe(true);
   });
+
+  it('removes all backdrop stars when Clear Dark Sky is selected and persists across reloads', () => {
+    const firstRender = render(<App />);
+
+    expect(screen.getByTestId('backdrop-starfield')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /WORKBENCH/i }));
+    const clearDarkSkyBtn = screen.getByRole('button', { name: /Clear Dark Sky/i });
+    fireEvent.click(clearDarkSkyBtn);
+
+    expect(clearDarkSkyBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('backdrop-starfield')).not.toBeInTheDocument();
+
+    firstRender.unmount();
+    render(<App />);
+
+    expect(screen.queryByTestId('backdrop-starfield')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /WORKBENCH/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Cygnus Filament Veil/i }));
+    expect(screen.getByTestId('backdrop-starfield')).toBeInTheDocument();
+  });
 });

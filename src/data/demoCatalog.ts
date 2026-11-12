@@ -344,7 +344,7 @@ export const NEBULA_LAYERS: readonly NebulaLayerPreset[] = Object.freeze([
   {
     id: 'nebula-none',
     name: 'Clear Dark Sky',
-    description: 'Unadorned starfield for crisp contrast on faint galaxy shells',
+    description: 'Starless dark backdrop so every star, cluster, and galaxy in your sky is yours',
   },
   {
     id: 'nebula-cygnus-veil',

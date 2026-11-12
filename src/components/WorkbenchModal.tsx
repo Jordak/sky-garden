@@ -154,12 +154,14 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               ))}
             </div>
 
-            <h3 className="workbench-section-title">NEBULA VEIL &amp; DOME RIBS</h3>
+            <h3 className="workbench-section-title">AMBIENT SKY &amp; DOME RIBS</h3>
             <div className="workbench-compact-grid">
               {NEBULA_LAYERS.map((neb) => (
                 <button
                   key={neb.id}
                   type="button"
+                  aria-pressed={scene.nebulaLayerId === neb.id}
+                  title={neb.description}
                   className={`crt-choice-btn ${scene.nebulaLayerId === neb.id ? 'is-picked' : ''}`}
                   onClick={() => onSetSceneAppearance({ nebulaLayerId: neb.id })}
                 >
@@ -172,6 +174,8 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                 <button
                   key={frame.id}
                   type="button"
+                  aria-pressed={scene.windowFrameId === frame.id}
+                  title={frame.description}
                   className={`crt-choice-btn ${scene.windowFrameId === frame.id ? 'is-picked' : ''}`}
                   onClick={() => onSetSceneAppearance({ windowFrameId: frame.id })}
                 >

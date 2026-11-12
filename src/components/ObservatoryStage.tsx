@@ -337,7 +337,7 @@ export const ObservatoryStage: React.FC<ObservatoryStageProps> = ({
       onDrop={handleDrop}
       data-testid="observatory-stage"
     >
-      <StarfieldSvg hemisphere={scene.hemisphere} />
+      {scene.nebulaLayerId !== 'nebula-none' && <StarfieldSvg hemisphere={scene.hemisphere} />}
       <NebulaLayerSvg nebulaLayerId={scene.nebulaLayerId} />
 
       <div className="placed-objects-layer">

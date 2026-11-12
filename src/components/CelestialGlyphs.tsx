@@ -43,6 +43,7 @@ export const StarfieldSvg: React.FC<{ hemisphere: SceneHemisphere }> = React.mem
     return (
       <svg
         className="stage-layer-svg starfield-svg"
+        data-testid="backdrop-starfield"
         viewBox="0 0 1000 625"
         preserveAspectRatio="xMidYMid slice"
         aria-hidden="true"
