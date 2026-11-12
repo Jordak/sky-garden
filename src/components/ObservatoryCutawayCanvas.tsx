@@ -79,13 +79,6 @@ interface DustPuff {
   life: number;
 }
 
-interface StarlightMote {
-  x: number;
-  y: number;
-  vy: number;
-  phase: number;
-}
-
 interface ObservatoryCutawayCanvasProps {
   readonly hemisphere: SceneHemisphere;
   readonly windowFrameId: string;
@@ -265,12 +258,6 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
     if (!ctx) return;
 
     const sprites = getSideSpriteSheet();
-    const motes: StarlightMote[] = Array.from({ length: 18 }, (_, idx) => ({
-      x: 28 + ((idx * 17) % 264),
-      y: 24 + ((idx * 29) % 98),
-      vy: 2.5 + (idx % 3) * 1.1,
-      phase: idx * 0.9,
-    }));
 
     let rafId = 0;
     let lastTime = performance.now();
@@ -429,18 +416,6 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
               }
             }
           }
-        }
-      }
-
-      // Floating 1px golden starlight motes inside the glasshouse
-      for (const m of motes) {
-        m.y -= m.vy * dt;
-        if (m.y < 22) m.y = 126;
-        const mx = Math.round(m.x + Math.sin(now * 0.0012 + m.phase) * 3);
-        const my = Math.round(m.y);
-        if ((Math.floor(now / 350) + Math.floor(m.phase * 3)) % 4 !== 0) {
-          ctx.fillStyle = PAL.starIce;
-          ctx.fillRect(mx, my, 1, 1);
         }
       }
 

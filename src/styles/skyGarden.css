@@ -110,7 +110,7 @@ input {
 }
 
 .star-twinkle {
-  animation: gentleTwinkle 4.2s steps(4, end) infinite alternate;
+  animation: gentleTwinkle 5.5s ease-in-out infinite alternate;
 }
 
 @keyframes gentleTwinkle {
