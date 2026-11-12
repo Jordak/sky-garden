@@ -1,9 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { CollectionTray } from './components/CollectionTray';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ClassificationCrtModal } from './components/ClassificationCrtModal';
+import { ObservatoryCutawayCanvas } from './components/ObservatoryCutawayCanvas';
 import { ObservatoryStage } from './components/ObservatoryStage';
-import { SubjectInspector } from './components/SubjectInspector';
+import { SkyEditSatchelHud } from './components/SkyEditSatchelHud';
+import { StarAtlasModal } from './components/StarAtlasModal';
+import { WorkbenchModal } from './components/WorkbenchModal';
 import { useSkyGardenState } from './state/useSkyGardenState';
 import { serializeScenesToJson } from './storage/sceneStorage';
+import type { StationId } from './types/skyGarden';
 
 export const App: React.FC = () => {
   const {
@@ -13,7 +17,6 @@ export const App: React.FC = () => {
     selectedInstanceId,
     selectedObject,
     inspectedCollectionEntryId,
-    inspectedGalaxy,
     canUndo,
     canRedo,
     storageHealthy,
@@ -21,6 +24,7 @@ export const App: React.FC = () => {
     setSelectedInstanceId,
     setInspectedCollectionEntryId,
     selectHemisphere,
+    toggleHemisphere,
     placeItem,
     beginContinuousGesture,
     updateObjectLive,
@@ -29,6 +33,8 @@ export const App: React.FC = () => {
     reorderObjectLayer,
     removePlacedObject,
     setSceneAppearance,
+    toggleRoomProp,
+    recordPracticeObservation,
     clearCurrentScene,
     resetStarterScenes,
     undo,
@@ -37,19 +43,45 @@ export const App: React.FC = () => {
     dismissWarning,
   } = useSkyGardenState();
 
+  const [activeStation, setActiveStation] = useState<StationId | null>(null);
   const [exhibitionMode, setExhibitionMode] = useState<boolean>(false);
-  const [showScienceModal, setShowScienceModal] = useState<boolean>(false);
-  const [statusNotice, setStatusNotice] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [statusToast, setStatusToast] = useState<string | null>(null);
+
+  const skyEditMode = activeStation === 'telescope' && !exhibitionMode;
+
+  const observedSourceIds = useMemo(
+    () => new Set(scenesState.practiceLog.map((entry) => entry.sourceGalaxyId)),
+    [scenesState.practiceLog],
+  );
+
+  const handleTriggerStation = useCallback(
+    (station: StationId) => {
+      if (station === 'dome-wheel') {
+        const next = toggleHemisphere();
+        setStatusToast(
+          next === 'north'
+            ? 'Rotated observatory dome to Northern Sky.'
+            : 'Rotated observatory dome to Southern Sky.',
+        );
+        return;
+      }
+      setActiveStation(station);
+    },
+    [toggleHemisphere],
+  );
+
+  useEffect(() => {
+    if (!statusToast) return;
+    const id = window.setTimeout(() => setStatusToast(null), 3400);
+    return () => window.clearTimeout(id);
+  }, [statusToast]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (
         target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable)
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
       ) {
         return;
       }
@@ -61,17 +93,28 @@ export const App: React.FC = () => {
         } else {
           undo();
         }
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         redo();
-      } else if (e.key === 'Escape' && exhibitionMode) {
-        setExhibitionMode(false);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (exhibitionMode) {
+          e.preventDefault();
+          setExhibitionMode(false);
+        } else if (activeStation !== null) {
+          e.preventDefault();
+          setActiveStation(null);
+        }
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [exhibitionMode, redo, undo]);
+  }, [activeStation, exhibitionMode, redo, undo]);
 
   const handleExportJson = () => {
     const json = serializeScenesToJson(scenesState);
@@ -79,28 +122,25 @@ export const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `sky-garden-layout-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `sky-garden-observatory-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setStatusNotice('Exported both North and South sky compositions as JSON.');
+    setStatusToast('Saved observatory & sky layout to JSON.');
   };
 
-  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const handleImportFile = async (file: File) => {
     try {
       const text = await file.text();
       const result = importScenesJson(text);
       if (!result.ok) {
-        setStatusNotice(`Import declined: ${result.error}`);
+        setStatusToast(`Import declined: ${result.error}`);
       } else {
-        setStatusNotice(`Imported sky layout from "${file.name}".`);
+        setStatusToast(`Loaded observatory layout from "${file.name}".`);
       }
     } catch {
-      setStatusNotice('Could not read the selected layout file.');
+      setStatusToast('Could not read the selected JSON file.');
     }
   };
 
@@ -108,260 +148,235 @@ export const App: React.FC = () => {
   const southCount = scenesState.scenes.south.objects.length;
 
   return (
-    <div className={`app-shell ${exhibitionMode ? 'mode-exhibition' : ''}`}>
-      {/* Top Observatory Toolbar */}
-      <header className="topbar">
-        <div className="brand-group">
-          <div className="brand-mark" aria-hidden="true">
-            ✦
-          </div>
-          <div>
-            <div className="brand-title-line">
-              <h1 className="brand-title">Sky Garden</h1>
-              <span className="prototype-pill">Prototype · Demo Collection</span>
+    <div className="game-screen-root">
+      <div className="game-cabinet-column">
+        {/* Slim Pixel Top Bar outside the glasshouse dome so the arched roof & lights stay 100% unobstructed */}
+        <header className="pixel-hud-strip">
+          {!exhibitionMode ? (
+            <div className="pixel-hud-bar">
+              <div className="pixel-brand-plaque">
+                <span className="pixel-star-glyph" aria-hidden="true">
+                  ✦
+                </span>
+                <strong>SKY GARDEN</strong>
+                <span className="pixel-micro-tag status-demo">DEMO</span>
+              </div>
+
+              <nav className="pixel-station-shortcuts" aria-label="Observatory Stations">
+                <button
+                  type="button"
+                  aria-pressed={activeStation === 'crt-desk'}
+                  className={`pixel-hud-btn ${activeStation === 'crt-desk' ? 'is-active' : ''}`}
+                  onClick={() =>
+                    setActiveStation((s) => (s === 'crt-desk' ? null : 'crt-desk'))
+                  }
+                >
+                  CLASSIFY
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={activeStation === 'atlas'}
+                  className={`pixel-hud-btn ${activeStation === 'atlas' ? 'is-active' : ''}`}
+                  onClick={() => setActiveStation((s) => (s === 'atlas' ? null : 'atlas'))}
+                >
+                  STAR ATLAS
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={skyEditMode}
+                  className={`pixel-hud-btn ${skyEditMode ? 'is-active' : ''}`}
+                  onClick={() =>
+                    setActiveStation((s) => (s === 'telescope' ? null : 'telescope'))
+                  }
+                >
+                  DECORATE SKY
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={activeStation === 'workbench'}
+                  className={`pixel-hud-btn ${activeStation === 'workbench' ? 'is-active' : ''}`}
+                  onClick={() =>
+                    setActiveStation((s) => (s === 'workbench' ? null : 'workbench'))
+                  }
+                >
+                  WORKBENCH
+                </button>
+              </nav>
+
+              <div
+                className="pixel-hemi-switch"
+                role="group"
+                aria-label="Observatory Dome Hemisphere"
+              >
+                <button
+                  type="button"
+                  aria-pressed={activeHemisphere === 'north'}
+                  className={`pixel-hud-btn ${activeHemisphere === 'north' ? 'is-active' : ''}`}
+                  onClick={() => selectHemisphere('north')}
+                >
+                  Northern Window <span>{northCount}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={activeHemisphere === 'south'}
+                  className={`pixel-hud-btn ${activeHemisphere === 'south' ? 'is-active' : ''}`}
+                  onClick={() => selectHemisphere('south')}
+                >
+                  Southern Window <span>{southCount}</span>
+                </button>
+              </div>
             </div>
-            <p className="brand-tagline">
-              Personal observatory window — offline sky-composition milestone
-            </p>
-          </div>
-        </div>
-
-        {/* North / South Creative Hemisphere Switcher */}
-        <div
-          className="hemisphere-toggle"
-          role="group"
-          aria-label="Creative Sky Window Hemisphere"
-        >
-          <button
-            type="button"
-            aria-pressed={activeHemisphere === 'north'}
-            className={`hemi-btn ${activeHemisphere === 'north' ? 'is-active' : ''}`}
-            onClick={() => selectHemisphere('north')}
-          >
-            <span>Northern Window</span>
-            <small>{northCount}</small>
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeHemisphere === 'south'}
-            className={`hemi-btn ${activeHemisphere === 'south' ? 'is-active' : ''}`}
-            onClick={() => selectHemisphere('south')}
-          >
-            <span>Southern Window</span>
-            <small>{southCount}</small>
-          </button>
-        </div>
-
-        {/* Editing, Persistence & Exhibition Actions */}
-        <div className="topbar-actions">
-          {!exhibitionMode && (
-            <>
-              <button
-                type="button"
-                className="btn-toolbar"
-                disabled={!canUndo}
-                onClick={undo}
-                title="Undo last change (Cmd/Ctrl+Z)"
-              >
-                ↶ Undo
-              </button>
-              <button
-                type="button"
-                className="btn-toolbar"
-                disabled={!canRedo}
-                onClick={redo}
-                title="Redo (Shift+Cmd/Ctrl+Z)"
-              >
-                ↷ Redo
-              </button>
-
-              <span className="toolbar-divider" aria-hidden="true" />
-
-              <button
-                type="button"
-                className="btn-toolbar"
-                onClick={handleExportJson}
-                title="Download North & South layouts as a JSON file"
-              >
-                Export JSON
-              </button>
-              <button
-                type="button"
-                className="btn-toolbar"
-                onClick={() => fileInputRef.current?.click()}
-                title="Import a saved Sky Garden JSON layout"
-              >
-                Import
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json,.json"
-                className="sr-only-file"
-                onChange={handleImportFile}
-                aria-label="Import layout JSON file"
-              />
-
-              <button
-                type="button"
-                className="btn-toolbar"
-                onClick={clearCurrentScene}
-                disabled={activeScene.objects.length === 0}
-                title="Remove all placed items from the current hemisphere window"
-              >
-                Clear Pane
-              </button>
-              <button
-                type="button"
-                className="btn-toolbar"
-                onClick={resetStarterScenes}
-                title="Restore initial demo arrangements for both North and South"
-              >
-                Reset Demo
-              </button>
-            </>
+          ) : (
+            <div className="pixel-brand-plaque">
+              <span className="pixel-star-glyph" aria-hidden="true">
+                ✦
+              </span>
+              <strong>EXHIBITION GAZE</strong>
+            </div>
           )}
 
-          <button
-            type="button"
-            aria-pressed={exhibitionMode}
-            className={`btn-toolbar btn-exhibition ${exhibitionMode ? 'is-active' : ''}`}
-            onClick={() => setExhibitionMode((v) => !v)}
-            title="Hide editing panels and frame your sky as a quiet exhibition"
-          >
-            {exhibitionMode ? 'Exit Exhibition' : '✦ Exhibition Gaze'}
-          </button>
+          <div className="pixel-hud-right">
+            <button
+              type="button"
+              aria-pressed={exhibitionMode}
+              className={`pixel-hud-btn btn-gold ${exhibitionMode ? 'is-active' : ''}`}
+              onClick={() => {
+                setActiveStation(null);
+                setExhibitionMode((v) => !v);
+              }}
+            >
+              {exhibitionMode ? '[ESC] EXIT GAZE' : '✦ QUIET GAZE'}
+            </button>
+            {!exhibitionMode && (
+              <span
+                className={`pixel-save-lamp ${storageHealthy ? 'is-ok' : 'is-warn'}`}
+                title={
+                  storageHealthy
+                    ? 'Auto-saved in browser localStorage'
+                    : 'Local storage unavailable — export JSON at Workbench'
+                }
+              >
+                {storageHealthy ? 'SAVED' : 'MEM ONLY'}
+              </span>
+            )}
+          </div>
+        </header>
 
-          <button
-            type="button"
-            className="btn-toolbar btn-science-note"
-            onClick={() => setShowScienceModal(true)}
-          >
-            Science Guardrails
-          </button>
-
-          <span
-            className={`storage-indicator ${storageHealthy ? 'is-ok' : 'is-warn'}`}
-            title={
-              storageHealthy
-                ? 'Both North and South scenes auto-save locally in your browser'
-                : 'Local storage unavailable — changes remain in memory until exported'
-            }
-          >
-            {storageHealthy ? 'Saved locally' : 'Memory only'}
-          </span>
-        </div>
-      </header>
-
-      {/* Non-destructive Storage / Import Notices */}
-      {(storageWarning || statusNotice) && (
-        <div className="notice-banner" role="status">
-          <span>{storageWarning ?? statusNotice}</span>
-          <button
-            type="button"
-            className="notice-dismiss"
-            onClick={() => {
-              dismissWarning();
-              setStatusNotice(null);
-            }}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Main Three-Column Observatory Workspace */}
-      <main className="workspace-grid">
-        {!exhibitionMode && (
-          <CollectionTray
+        <div className="observatory-world-viewport">
+          {/* Layer 1: Always-visible panoramic night sky & placed galaxies */}
+          <ObservatoryStage
             scene={activeScene}
-            inspectedCollectionEntryId={inspectedCollectionEntryId}
-            onInspectEntry={setInspectedCollectionEntryId}
-            onPlaceItem={(kind, refId) => placeItem(kind, refId)}
-            onSetSceneAppearance={setSceneAppearance}
-          />
-        )}
-
-        <ObservatoryStage
-          scene={activeScene}
-          selectedInstanceId={selectedInstanceId}
-          exhibitionMode={exhibitionMode}
-          onSelectObject={setSelectedInstanceId}
-          onBeginGesture={beginContinuousGesture}
-          onUpdateLive={updateObjectLive}
-          onEndGesture={endContinuousGesture}
-          onPatchDiscrete={patchObjectDiscrete}
-          onReorderLayer={reorderObjectLayer}
-          onRemoveObject={removePlacedObject}
-          onDropNewItem={placeItem}
-        />
-
-        {!exhibitionMode && (
-          <SubjectInspector
-            selectedObject={selectedObject}
-            inspectedGalaxy={inspectedGalaxy}
-            totalObjectsInScene={activeScene.objects.length}
+            selectedInstanceId={selectedInstanceId}
+            interactive={skyEditMode}
+            exhibitionMode={exhibitionMode}
+            onSelectObject={setSelectedInstanceId}
+            onBeginGesture={beginContinuousGesture}
+            onUpdateLive={updateObjectLive}
+            onEndGesture={endContinuousGesture}
             onPatchDiscrete={patchObjectDiscrete}
             onReorderLayer={reorderObjectLayer}
             onRemoveObject={removePlacedObject}
+            onDropNewItem={placeItem}
+          />
+
+          {/* Layer 2: Side-on 320x180 Celeste-style cutaway pixel-art observatory */}
+          <ObservatoryCutawayCanvas
+            hemisphere={activeHemisphere}
+            windowFrameId={activeScene.windowFrameId}
+            activeRoomProps={scenesState.activeRoomProps}
+            practiceCount={scenesState.practiceLog.length}
+            activeStation={activeStation}
+            skyEditMode={skyEditMode}
+            exhibitionMode={exhibitionMode}
+            onTriggerStation={handleTriggerStation}
+          />
+
+        {/* Non-destructive Pixel Toast / Storage Warning */}
+        {(storageWarning || statusToast) && !exhibitionMode && (
+          <div className="pixel-toast-banner" role="status">
+            <span>{storageWarning ?? statusToast}</span>
+            <button
+              type="button"
+              className="pixel-mini-btn"
+              onClick={() => {
+                dismissWarning();
+                setStatusToast(null);
+              }}
+            >
+              OK
+            </button>
+          </div>
+        )}
+
+        {/* Layer 3A: Bottom Pixel Satchel Dock when peering through the Telescope */}
+        {skyEditMode && (
+          <SkyEditSatchelHud
+            scene={activeScene}
+            selectedObject={selectedObject}
+            observedSourceIds={observedSourceIds}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onPlaceItem={(kind, refId) => {
+              placeItem(kind, refId);
+            }}
+            onPatchDiscrete={patchObjectDiscrete}
+            onReorderLayer={reorderObjectLayer}
+            onRemoveObject={removePlacedObject}
+            onOpenAtlasForEntry={(entryId) => {
+              setInspectedCollectionEntryId(entryId);
+              setActiveStation('atlas');
+            }}
+            onUndo={undo}
+            onRedo={redo}
+            onClearPane={clearCurrentScene}
+            onCloseScope={() => setActiveStation(null)}
           />
         )}
-      </main>
 
-      {/* Science & Zooniverse Guardrails Modal */}
-      {showScienceModal && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="science-modal-title"
-          onClick={() => setShowScienceModal(false)}
-        >
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 id="science-modal-title">Scientific Guardrails &amp; Prototype Status</h2>
-              <button
-                type="button"
-                className="btn-subtle"
-                onClick={() => setShowScienceModal(false)}
-              >
-                Close
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>
-                <strong>Offline Prototype Only:</strong> Sky Garden Milestone 1 makes zero network
-                requests and submits no classifications to Galaxy Zoo or Zooniverse. Every item in
-                the Curator&apos;s Tray is a bundled open-licensed astronomical cutout (CC BY 4.0)
-                for testing whether composing a personal sky feels rewarding.
-              </p>
-              <ul>
-                <li>
-                  <strong>Immutable Scientific Data:</strong> Creative window placement, scaling,
-                  rotation, and soft edge-blending never alter source cutouts or catalog records.
-                </li>
-                <li>
-                  <strong>Ungated Inspection Tools:</strong> Negative-plate inversion, contrast
-                  stretching, core zoom, and angular scale bars are available from minute zero—never
-                  locked behind game progression.
-                </li>
-                <li>
-                  <strong>Creative vs. Real Sky Honesty:</strong> Window positions are explicitly
-                  labeled creative compositions. Verified ICRS (J2000) coordinates appear separately
-                  in the Subject Inspector, and missing or unverified coordinates are withheld
-                  rather than guessed.
-                </li>
-                <li>
-                  <strong>Unbiased Future Rewards:</strong> Any future live Zooniverse Custom Front
-                  End collaboration must avoid bonuses for speed, rare morphology labels, or
-                  agreement with automated predictions.
-                </li>
-              </ul>
-            </div>
-          </div>
+        {/* Layer 3B: Diegetic Station Modals */}
+        {activeStation === 'crt-desk' && (
+          <ClassificationCrtModal
+            observedSourceIds={observedSourceIds}
+            practiceCount={scenesState.practiceLog.length}
+            onRecordObservation={recordPracticeObservation}
+            onHangGalaxyAtScope={(collectionEntryId) => {
+              placeItem('galaxy', collectionEntryId);
+              setActiveStation('telescope');
+            }}
+            onClose={() => setActiveStation(null)}
+          />
+        )}
+
+        {activeStation === 'atlas' && (
+          <StarAtlasModal
+            inspectedCollectionEntryId={inspectedCollectionEntryId}
+            activeHemisphere={activeHemisphere}
+            observedSourceIds={observedSourceIds}
+            onSelectEntry={setInspectedCollectionEntryId}
+            onHangInSky={(entryId) => {
+              placeItem('galaxy', entryId);
+              setActiveStation('telescope');
+            }}
+            onClose={() => setActiveStation(null)}
+          />
+        )}
+
+        {activeStation === 'workbench' && (
+          <WorkbenchModal
+            scene={activeScene}
+            activeRoomProps={scenesState.activeRoomProps}
+            onToggleRoomProp={toggleRoomProp}
+            onSetSceneAppearance={setSceneAppearance}
+            onExportJson={handleExportJson}
+            onImportJsonFile={handleImportFile}
+            onResetDemo={resetStarterScenes}
+            onClose={() => setActiveStation(null)}
+          />
+        )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
+
 export default App;

@@ -1,5 +1,20 @@
 export type SceneHemisphere = 'north' | 'south';
 
+export type StationId = 'crt-desk' | 'atlas' | 'telescope' | 'dome-wheel' | 'workbench';
+
+export type RoomPropId =
+  | 'rug-crimson'
+  | 'cat-ginger'
+  | 'plant-fern'
+  | 'orrery-brass'
+  | 'lights-amber';
+
+export interface RoomPropDefinition {
+  readonly id: RoomPropId;
+  readonly name: string;
+  readonly description: string;
+}
+
 export type SkyCoordinates =
   | {
       readonly status: 'verified';
@@ -74,13 +89,12 @@ export interface CelestialDecorItem {
 export type PlacedObjectKind = 'galaxy' | 'celestial_decor';
 
 /**
- * A single decorative instance placed in a creative North or South scene.
- * Coordinates x and y are normalized [0..1] relative to the observatory window stage.
+ * A single decorative instance placed in a creative North or South sky dome.
+ * Coordinates x and y are normalized [0..1] relative to the 16:9 observatory viewport.
  */
 export interface PlacedObject {
   readonly instanceId: string;
   readonly kind: PlacedObjectKind;
-  /** References CollectionEntry.entryId when kind === 'galaxy', or CelestialDecorItem.decorId when kind === 'celestial_decor'. */
   readonly refId: string;
   readonly scene: SceneHemisphere;
   readonly x: number;
@@ -119,10 +133,20 @@ export interface SceneComposition {
   readonly objects: readonly PlacedObject[];
 }
 
+export interface PracticeObservation {
+  readonly sourceGalaxyId: string;
+  readonly primaryMorphology: string;
+  readonly detailChoice: string;
+  readonly oddityNote: string;
+  readonly observedAtIso: string;
+}
+
 export interface SavedScenesState {
   readonly schemaVersion: 1;
   readonly selectedScene: SceneHemisphere;
   readonly updatedAtIso: string;
+  readonly activeRoomProps: readonly RoomPropId[];
+  readonly practiceLog: readonly PracticeObservation[];
   readonly scenes: {
     readonly north: SceneComposition;
     readonly south: SceneComposition;
@@ -131,8 +155,6 @@ export interface SavedScenesState {
 
 /**
  * Reserved contract for future Zooniverse Custom Front End integration.
- * Kept separate from scene decorations and reward unlocks so network retries
- * cannot duplicate submissions or bias scientific answers.
  */
 export interface FutureContributionRecord {
   readonly contributionId: string;

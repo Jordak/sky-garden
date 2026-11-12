@@ -1,14 +1,19 @@
 import {
   CELESTIAL_DECOR_ITEMS,
   createInitialScenesState,
+  DEFAULT_ROOM_PROPS,
   DEMO_COLLECTION_ENTRIES,
   NEBULA_LAYERS,
+  ROOM_PROPS,
   SKY_BACKGROUNDS,
+  SOURCE_GALAXIES,
   WINDOW_FRAMES,
 } from '../data/demoCatalog';
 import type {
   PlacedObject,
   PlacedObjectKind,
+  PracticeObservation,
+  RoomPropId,
   SavedScenesState,
   SceneComposition,
   SceneHemisphere,
@@ -17,8 +22,10 @@ import type {
 export const STORAGE_KEY = 'sky-garden.scenes.v1';
 export const CORRUPT_BACKUP_KEY = 'sky-garden.scenes.corrupt-backup';
 
-export const MIN_COORD = 0.06;
-export const MAX_COORD = 0.94;
+export const MIN_COORD_X = 0.09;
+export const MAX_COORD_X = 0.91;
+export const MIN_COORD_Y = 0.1;
+export const MAX_COORD_Y = 0.66;
 export const MIN_SCALE = 0.35;
 export const MAX_SCALE = 2.4;
 
@@ -27,6 +34,8 @@ const VALID_NEBULAE = new Set(NEBULA_LAYERS.map((n) => n.id));
 const VALID_FRAMES = new Set(WINDOW_FRAMES.map((f) => f.id));
 const VALID_GALAXY_ENTRIES = new Set(DEMO_COLLECTION_ENTRIES.map((c) => c.entryId));
 const VALID_DECOR_IDS = new Set(CELESTIAL_DECOR_ITEMS.map((d) => d.decorId));
+const VALID_ROOM_PROPS = new Set<string>(ROOM_PROPS.map((p) => p.id));
+const VALID_SOURCE_IDS = new Set(SOURCE_GALAXIES.map((g) => g.id));
 
 export interface LoadScenesResult {
   readonly state: SavedScenesState;
@@ -40,9 +49,14 @@ export interface SaveScenesResult {
   readonly warning: string | null;
 }
 
-export function clampCoord(value: number): number {
+export function clampCoordX(value: number): number {
   if (!Number.isFinite(value)) return 0.5;
-  return Math.min(MAX_COORD, Math.max(MIN_COORD, Math.round(value * 10000) / 10000));
+  return Math.min(MAX_COORD_X, Math.max(MIN_COORD_X, Math.round(value * 10000) / 10000));
+}
+
+export function clampCoordY(value: number): number {
+  if (!Number.isFinite(value)) return 0.36;
+  return Math.min(MAX_COORD_Y, Math.max(MIN_COORD_Y, Math.round(value * 10000) / 10000));
 }
 
 export function clampScale(value: number): number {
@@ -52,7 +66,7 @@ export function clampScale(value: number): number {
 
 export function normalizeRotation(deg: number): number {
   if (!Number.isFinite(deg)) return 0;
-  let wrapped = ((deg + 180) % 360 + 360) % 360 - 180;
+  let wrapped = (((deg + 180) % 360) + 360) % 360 - 180;
   if (Object.is(wrapped, -0)) wrapped = 0;
   return Math.round(wrapped * 10) / 10;
 }
@@ -115,11 +129,14 @@ function sanitizePlacedObjects(
       kind,
       refId,
       scene: hemisphere,
-      x: clampCoord(typeof item.x === 'number' ? item.x : 0.5),
-      y: clampCoord(typeof item.y === 'number' ? item.y : 0.5),
+      x: clampCoordX(typeof item.x === 'number' ? item.x : 0.5),
+      y: clampCoordY(typeof item.y === 'number' ? item.y : 0.36),
       scale: clampScale(typeof item.scale === 'number' ? item.scale : 1),
       rotationDeg: normalizeRotation(typeof item.rotationDeg === 'number' ? item.rotationDeg : 0),
-      layer: typeof item.layer === 'number' && Number.isFinite(item.layer) ? item.layer : sanitized.length,
+      layer:
+        typeof item.layer === 'number' && Number.isFinite(item.layer)
+          ? item.layer
+          : sanitized.length,
     });
   }
 
@@ -170,9 +187,40 @@ function sanitizeScene(
   };
 }
 
+function sanitizeRoomProps(raw: unknown): RoomPropId[] {
+  if (!Array.isArray(raw)) return [...DEFAULT_ROOM_PROPS];
+  const valid = raw.filter(
+    (item): item is RoomPropId => typeof item === 'string' && VALID_ROOM_PROPS.has(item),
+  );
+  return Array.from(new Set(valid));
+}
+
+function sanitizePracticeLog(raw: unknown): PracticeObservation[] {
+  if (!Array.isArray(raw)) return [];
+  const list: PracticeObservation[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    if (typeof item.sourceGalaxyId !== 'string' || !VALID_SOURCE_IDS.has(item.sourceGalaxyId)) {
+      continue;
+    }
+    list.push({
+      sourceGalaxyId: item.sourceGalaxyId,
+      primaryMorphology:
+        typeof item.primaryMorphology === 'string' ? item.primaryMorphology : 'Observed',
+      detailChoice: typeof item.detailChoice === 'string' ? item.detailChoice : '',
+      oddityNote: typeof item.oddityNote === 'string' ? item.oddityNote : 'None',
+      observedAtIso:
+        typeof item.observedAtIso === 'string' ? item.observedAtIso : new Date().toISOString(),
+    });
+  }
+  return list;
+}
+
 export function validateAndSanitizeScenesState(
   parsed: unknown,
-): { readonly state: SavedScenesState; readonly warnings: readonly string[] } | { readonly error: string } {
+):
+  | { readonly state: SavedScenesState; readonly warnings: readonly string[] }
+  | { readonly error: string } {
   if (!isRecord(parsed)) {
     return { error: 'Saved layout root is not a JSON object.' };
   }
@@ -202,13 +250,17 @@ export function validateAndSanitizeScenesState(
       selectedScene,
       updatedAtIso:
         typeof parsed.updatedAtIso === 'string' ? parsed.updatedAtIso : new Date().toISOString(),
+      activeRoomProps: sanitizeRoomProps(parsed.activeRoomProps),
+      practiceLog: sanitizePracticeLog(parsed.practiceLog),
       scenes: { north, south },
     },
     warnings,
   };
 }
 
-export function loadScenesFromStorage(storage?: Pick<Storage, 'getItem' | 'setItem'>): LoadScenesResult {
+export function loadScenesFromStorage(
+  storage?: Pick<Storage, 'getItem' | 'setItem'>,
+): LoadScenesResult {
   const targetStorage =
     storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
 
@@ -250,7 +302,7 @@ export function loadScenesFromStorage(storage?: Pick<Storage, 'getItem' | 'setIt
     try {
       targetStorage.setItem(CORRUPT_BACKUP_KEY, raw);
     } catch {
-      // Ignore secondary backup failure; we still warn the user before touching primary key.
+      // Ignore secondary backup failure.
     }
     return {
       state: createInitialScenesState(),
@@ -316,7 +368,9 @@ export function serializeScenesToJson(state: SavedScenesState): string {
 
 export function parseImportedScenesJson(
   rawJson: string,
-): { readonly state: SavedScenesState; readonly warning: string | null } | { readonly error: string } {
+):
+  | { readonly state: SavedScenesState; readonly warning: string | null }
+  | { readonly error: string } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawJson);

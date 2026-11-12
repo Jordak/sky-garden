@@ -1,8 +1,8 @@
 # Sky Garden (Working Title)
 
-Sky Garden is an offline desktop-browser prototype exploring a cozy personal observatory built around citizen-science guardrails for [Galaxy Zoo](https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/). Milestone 1 tests a foundational design question before any live Zooniverse integration or reward economy is built: **is composing a framed night sky out of real astronomical galaxy cutouts intrinsically enjoyable?**
+Sky Garden is an offline desktop-browser prototype for a cozy **side-on pixel-art rooftop observatory** built around citizen-science guardrails for [Galaxy Zoo](https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/). Players walk across a cutaway glasshouse observatory beneath their live night sky, sit at a Blink Comparator CRT terminal to practice classifying real astronomical cutouts, flip through an Illuminated Star Atlas, and step up to a brass telescope to compose Northern and Southern skies.
 
-> **Prototype Status:** This build uses a clearly labeled local demo bundle of eight open-licensed astronomical cutouts (`CC BY 4.0`). It requires no account, makes no network requests during play, and submits no classifications to Galaxy Zoo or Zooniverse.
+> **Prototype Status:** This build uses a local demo bundle of eight open-licensed astronomical cutouts (`CC BY 4.0`). It requires no account, makes no network requests during play, and submits no live classifications to Galaxy Zoo or Zooniverse.
 
 ## Quick Start
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Additional verification commands:
+Verification commands:
 
 ```bash
 npm test          # Run Vitest unit & integration suite
@@ -21,29 +21,20 @@ npm run build     # Type-check with TypeScript and build production bundle into 
 npm run preview   # Serve the production build locally
 ```
 
-## Renderer Choice
+## Controls & Stations
 
-Milestone 1 uses a **layered DOM + inline SVG stage** (`src/components/ObservatoryStage.tsx`) rather than an imperative WebGL/Canvas engine such as PixiJS or Phaser:
+- **Move & Hop:** `A` / `D` or `←` / `→` to walk across the observatory deck, `Space` to hop, and `E` / `Enter` / `W` (or clicking any station) to interact.
+- **Blink Comparator CRT Desk (Left):** Run clearly labeled offline practice classifications on real survey cutouts with ungated hardware switches (`Invert`, `Contrast`, `2× Core`, `Arcmin Scale`), then hang the studied galaxy in your sky.
+- **Illuminated Star Atlas (Center-Left):** Inspect all eight bundled `512×512` cutouts, provenance, and verified `ICRS (J2000)` coordinates on an all-sky celestial chart (or honest unavailability notices when coordinates are omitted/unverified).
+- **Brass Telescope on Dais (Center):** Enter Sky-Curator mode to drag, scale, rotate, reorder, or keyboard-nudge (`Arrows`, `+/-`, `[/]`, `PageUp/PageDown`, `Del`) galaxies directly in the live sky dome overhead.
+- **Dome Compass Wheel (Center-Right):** Rotate the observatory dome between independent **Northern** and **Southern** sky compositions.
+- **Curator's Workbench (Right):** Toggle pixel-art room furnishings (crimson rug, sleeping ginger cat, bookshelf fern, spinning brass orrery, amber rafter lights), choose sky atmospheres and nebula veils, and export/import layout JSON.
 
-- **Resolution-independent normalized coordinates:** Object centers are stored as normalized `[0..1]` fractions of the `16:10` observatory aperture, while visual diameters scale proportionally to live stage width via `ResizeObserver`. Resizing the browser window preserves overlaps, spacing, and mullion framing without coordinate drift.
-- **Non-destructive optical blending:** Placed galaxy cutouts render with `mix-blend-mode: screen` and a soft radial CSS mask so dark sky backgrounds in real survey stamps melt seamlessly into starfields and nebula veils, while the underlying JPEG files and the Subject Inspector view remain untouched.
-- **Native keyboard & assistive accessibility:** Every placed galaxy or celestial accent is a focusable DOM control supporting keyboard nudging (`Arrows`, `Shift+Arrows`), scaling (`+`/`-`), rotation (`[`/`]`), layer ordering (`PageUp`/`PageDown`), removal (`Delete`), and session `Undo`/`Redo` (`Cmd/Ctrl+Z`, `Shift+Cmd/Ctrl+Z`).
-- **Low complexity:** For scenes of ~5–50 celestial objects, GPU-composited CSS transforms and SVG filters stay crisp at 60 fps without pulling in a heavy game-engine runtime. PixiJS remains an easy future swap if particle systems or hundreds of animated objects become desirable.
+## Hybrid Pixel-Art + Survey Cutout Renderer
 
-## Architecture & Scientific Guardrails
+Sky Garden layers two purpose-built renderers inside a `16:9` viewport:
 
-Domain models in `src/types/skyGarden.ts` keep creative state strictly separated from scientific subject records:
+1. **Foreground Cutaway Observatory (`src/components/ObservatoryCutawayCanvas.tsx`):** A palette-locked `320×180` HTML5 `<canvas>` (`imageSmoothingEnabled = false`, `image-rendering: pixelated`) with transparent glasshouse dome panes, integer-grid ASCII-compiled pixel sprites (`src/pixel/pixelSprites.ts`), and a crisp `3×5` pixel bitmap font (`src/pixel/pixelFont.ts`).
+2. **Panoramic Sky Backdrop (`src/components/ObservatoryStage.tsx`):** Normalized `[0..1]` DOM/SVG sky stage behind the pixel rafters so real, unpixelated survey cutouts float naturally via non-destructive CSS `screen` blending while preserving unmodified scientific pixels in the CRT and Star Atlas viewers.
 
-- **`SourceGalaxy`** — Immutable survey cutout path, provenance, angular field size, and a discriminated `SkyCoordinates` union (`verified` ICRS J2000 coordinates vs. `unavailable` or `unverified`).
-- **`CollectionEntry`** — Distinct entry ID linking a `SourceGalaxy` to its acquisition provenance (`demo_bundle` today; `verified_contribution` reserved for future live workflows). Removing a placed object from a window never deletes it from the collection.
-- **`PlacedObject`** — Distinct `instanceId`, hemisphere (`north` or `south`), normalized `(x, y)` creative window coordinates, `scale`, `rotationDeg`, and integer `layer`.
-- **`SavedScenesState`** — Versioned (`schemaVersion: 1`) persistence in `localStorage` (`sky-garden.scenes.v1`) with JSON export/import, corrupt-payload backup protection, and explicit warnings if browser storage is blocked or full.
-- **Ungated Inspection Tools** — Negative-plate luminance inversion, contrast stretch, 2× nuclear core zoom, and calibrated arcminute reticles are available immediately in the Subject Inspector for every galaxy and are never gated behind progression upgrades.
-
-## Current Limitations & Next Steps Before Live Integration
-
-1. **No live Zooniverse connection:** No partnership or Custom Front End authorization with Zooniverse or Galaxy Zoo has been arranged yet. Outreach to `contact@zooniverse.org` (subject: `Custom Front End`) is required before connecting OAuth, subject queues, or classification submissions.
-2. **Creative hemispheres, not an ephemeris planetarium:** The Northern and Southern observatory windows are independent creative compositions, not horizon simulations for a specific latitude or sidereal time. Verified real-sky locations are shown separately in the Subject Inspector's all-sky `ICRS (J2000)` projection.
-3. **Desktop-first ergonomics:** Pointer capture and responsive layout work across desktop/laptop viewports, while multi-touch pinch-zoom gestures on phones are out of scope for Milestone 1.
-
-See [SKY_GARDEN_HANDOFF.md](./SKY_GARDEN_HANDOFF.md) for the project brief and [PROVENANCE.md](./PROVENANCE.md) for full survey attributions.
+See [SKY_GARDEN_HANDOFF.md](./SKY_GARDEN_HANDOFF.md) for the project brief and [PROVENANCE.md](./PROVENANCE.md) for survey attributions.

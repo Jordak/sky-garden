@@ -5,7 +5,8 @@ import {
   getSourceGalaxyForCollectionEntry,
 } from '../data/demoCatalog';
 import {
-  clampCoord,
+  clampCoordX,
+  clampCoordY,
   clampScale,
   loadScenesFromStorage,
   normalizeLayerOrder,
@@ -16,6 +17,8 @@ import {
 import type {
   PlacedObject,
   PlacedObjectKind,
+  PracticeObservation,
+  RoomPropId,
   SavedScenesState,
   SceneComposition,
   SceneHemisphere,
@@ -56,12 +59,12 @@ export function useSkyGardenState() {
 
   const [storageWarning, setStorageWarning] = useState<string | null>(initialLoad.warning);
   const [storageHealthy, setStorageHealthy] = useState<boolean>(initialLoad.storageAvailable);
+
   const scenesRef = useRef<SavedScenesState>(initialLoad.state);
   useEffect(() => {
     scenesRef.current = scenesState;
   }, [scenesState]);
 
-  const hasUserMutatedRef = useRef<boolean>(initialLoad.hadSavedData);
   const gestureSnapshotRef = useRef<SavedScenesState | null>(null);
 
   const persistIfDirty = useCallback((nextState: SavedScenesState) => {
@@ -72,7 +75,6 @@ export function useSkyGardenState() {
     }
   }, []);
 
-  // Persist initial starter scenes only when storage is clean (never overwrite a corrupt backup before user edits)
   useEffect(() => {
     if (initialLoad.storageAvailable && !initialLoad.hadSavedData && initialLoad.warning === null) {
       const result = saveScenesToStorage(initialLoad.state);
@@ -98,7 +100,6 @@ export function useSkyGardenState() {
         setPast((h) => [...h.slice(-(MAX_HISTORY - 1)), prev]);
         setFuture([]);
       }
-      hasUserMutatedRef.current = true;
       persistIfDirty(next);
     },
     [persistIfDirty],
@@ -112,7 +113,6 @@ export function useSkyGardenState() {
     [activeScene.objects, selectedInstanceId],
   );
 
-  // Sync inspected galaxy whenever a placed galaxy is selected
   useEffect(() => {
     if (selectedObject && selectedObject.kind === 'galaxy') {
       setInspectedCollectionEntryId(selectedObject.refId);
@@ -126,8 +126,8 @@ export function useSkyGardenState() {
 
   const selectHemisphere = useCallback(
     (hemisphere: SceneHemisphere) => {
-      if (hemisphere === scenesState.selectedScene) return;
-      const nextObjects = scenesState.scenes[hemisphere].objects;
+      if (hemisphere === scenesRef.current.selectedScene) return;
+      const nextObjects = scenesRef.current.scenes[hemisphere].objects;
       const nextSelected =
         nextObjects.find((o) => o.kind === 'galaxy')?.instanceId ??
         nextObjects[0]?.instanceId ??
@@ -141,8 +141,15 @@ export function useSkyGardenState() {
         false,
       );
     },
-    [commitChange, scenesState.scenes, scenesState.selectedScene],
+    [commitChange],
   );
+
+  const toggleHemisphere = useCallback(() => {
+    const nextHemi: SceneHemisphere =
+      scenesRef.current.selectedScene === 'north' ? 'south' : 'north';
+    selectHemisphere(nextHemi);
+    return nextHemi;
+  }, [selectHemisphere]);
 
   const placeItem = useCallback(
     (kind: PlacedObjectKind, refId: string, preferredPos?: { x: number; y: number }) => {
@@ -151,19 +158,18 @@ export function useSkyGardenState() {
         const hemi = prev.selectedScene;
         const current = prev.scenes[hemi];
         const count = current.objects.length;
-        // Gentle golden-angle spiral offset around window center when clicking "+ Place" repeatedly
         const angle = count * 2.39996;
-        const radius = Math.min(0.22, 0.055 * ((count % 5) + 1));
-        const defaultX = count === 0 ? 0.5 : 0.5 + Math.cos(angle) * radius;
-        const defaultY = count === 0 ? 0.48 : 0.48 + Math.sin(angle) * radius * 0.85;
+        const radius = Math.min(0.18, 0.05 * ((count % 5) + 1));
+        const defaultX = count === 0 ? 0.5 : 0.5 + Math.cos(angle) * radius * 1.4;
+        const defaultY = count === 0 ? 0.36 : 0.36 + Math.sin(angle) * radius * 0.75;
 
         const nextObj: PlacedObject = {
           instanceId: newInstanceId,
           kind,
           refId,
           scene: hemi,
-          x: clampCoord(preferredPos?.x ?? defaultX),
-          y: clampCoord(preferredPos?.y ?? defaultY),
+          x: clampCoordX(preferredPos?.x ?? defaultX),
+          y: clampCoordY(preferredPos?.y ?? defaultY),
           scale: 1,
           rotationDeg: 0,
           layer: current.objects.length,
@@ -184,6 +190,7 @@ export function useSkyGardenState() {
       if (kind === 'galaxy') {
         setInspectedCollectionEntryId(refId);
       }
+      return newInstanceId;
     },
     [commitChange],
   );
@@ -199,8 +206,8 @@ export function useSkyGardenState() {
     let changed = false;
     const updated = current.objects.map((obj) => {
       if (obj.instanceId !== instanceId) return obj;
-      const nextX = patch.x !== undefined ? clampCoord(patch.x) : obj.x;
-      const nextY = patch.y !== undefined ? clampCoord(patch.y) : obj.y;
+      const nextX = patch.x !== undefined ? clampCoordX(patch.x) : obj.x;
+      const nextY = patch.y !== undefined ? clampCoordY(patch.y) : obj.y;
       const nextScale = patch.scale !== undefined ? clampScale(patch.scale) : obj.scale;
       const nextRot =
         patch.rotationDeg !== undefined ? normalizeRotation(patch.rotationDeg) : obj.rotationDeg;
@@ -249,7 +256,6 @@ export function useSkyGardenState() {
     setScenesState(stamped);
     setPast((h) => [...h.slice(-(MAX_HISTORY - 1)), before]);
     setFuture([]);
-    hasUserMutatedRef.current = true;
     persistIfDirty(stamped);
   }, [persistIfDirty]);
 
@@ -261,8 +267,8 @@ export function useSkyGardenState() {
         let changed = false;
         const objects = current.objects.map((obj) => {
           if (obj.instanceId !== instanceId) return obj;
-          const nextX = patch.x !== undefined ? clampCoord(patch.x) : obj.x;
-          const nextY = patch.y !== undefined ? clampCoord(patch.y) : obj.y;
+          const nextX = patch.x !== undefined ? clampCoordX(patch.x) : obj.x;
+          const nextY = patch.y !== undefined ? clampCoordY(patch.y) : obj.y;
           const nextScale = patch.scale !== undefined ? clampScale(patch.scale) : obj.scale;
           const nextRot =
             patch.rotationDeg !== undefined
@@ -395,6 +401,41 @@ export function useSkyGardenState() {
     [commitChange],
   );
 
+  const toggleRoomProp = useCallback(
+    (propId: RoomPropId) => {
+      commitChange((prev) => {
+        const exists = prev.activeRoomProps.includes(propId);
+        const activeRoomProps = exists
+          ? prev.activeRoomProps.filter((p) => p !== propId)
+          : [...prev.activeRoomProps, propId];
+        return {
+          ...prev,
+          activeRoomProps,
+        };
+      });
+    },
+    [commitChange],
+  );
+
+  const recordPracticeObservation = useCallback(
+    (obs: Omit<PracticeObservation, 'observedAtIso'>) => {
+      commitChange(
+        (prev) => ({
+          ...prev,
+          practiceLog: [
+            ...prev.practiceLog,
+            {
+              ...obs,
+              observedAtIso: new Date().toISOString(),
+            },
+          ],
+        }),
+        false,
+      );
+    },
+    [commitChange],
+  );
+
   const clearCurrentScene = useCallback(() => {
     commitChange((prev) => {
       const hemi = prev.selectedScene;
@@ -418,11 +459,11 @@ export function useSkyGardenState() {
     const starter = createInitialScenesState();
     commitChange(() => ({
       ...starter,
-      selectedScene: scenesState.selectedScene,
+      selectedScene: scenesRef.current.selectedScene,
     }));
-    const firstObj = starter.scenes[scenesState.selectedScene].objects[0] ?? null;
+    const firstObj = starter.scenes[scenesRef.current.selectedScene].objects[0] ?? null;
     setSelectedInstanceId(firstObj?.instanceId ?? null);
-  }, [commitChange, scenesState.selectedScene]);
+  }, [commitChange]);
 
   const undo = useCallback(() => {
     if (past.length === 0) return;
@@ -490,6 +531,7 @@ export function useSkyGardenState() {
     setSelectedInstanceId,
     setInspectedCollectionEntryId,
     selectHemisphere,
+    toggleHemisphere,
     placeItem,
     beginContinuousGesture,
     updateObjectLive,
@@ -498,6 +540,8 @@ export function useSkyGardenState() {
     reorderObjectLayer,
     removePlacedObject,
     setSceneAppearance,
+    toggleRoomProp,
+    recordPracticeObservation,
     clearCurrentScene,
     resetStarterScenes,
     undo,
