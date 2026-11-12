@@ -10,6 +10,8 @@ import type {
   WindowFramePreset,
 } from '../types/skyGarden';
 
+const ASSET_BASE_URL = import.meta.env.BASE_URL;
+
 export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
   {
     id: 'src-ngc-1300',
@@ -19,7 +21,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
       'Strong central stellar bar feeding two sweeping blue star-forming spiral arms and inner dust lanes.',
     scienceContext:
       'Barred spirals test how stellar bars funnel gas inward without necessarily triggering an active galactic nucleus.',
-    originalImageUrl: '/assets/galaxies/ngc-1300.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/ngc-1300.jpg`,
     provenance: {
       survey: 'DESI Legacy Imaging Surveys',
       dataRelease: 'DR10 (g, r, i, z composite)',
@@ -47,7 +49,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
       'Open two-armed spiral with bright blue OB associations, prominent dust lanes, and a warm nuclear bar.',
     scienceContext:
       'In Galaxy Zoo workflows, distinguishing bar-driven arms from tidal tails helps calibrate secular vs. merger-driven evolution.',
-    originalImageUrl: '/assets/galaxies/ngc-1365.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/ngc-1365.jpg`,
     provenance: {
       survey: 'DESI Legacy Imaging Surveys',
       dataRelease: 'DR10 (DECam multi-band)',
@@ -75,7 +77,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
       'Razor-thin edge-on disk bisected by a crisp equatorial dust lane and a boxy, peanut-shaped central bulge.',
     scienceContext:
       'Edge-on disks let volunteers classify bulge geometry (boxy vs. rounded) and vertical disk warping that face-on views hide.',
-    originalImageUrl: '/assets/galaxies/ngc-4565.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/ngc-4565.jpg`,
     provenance: {
       survey: 'DESI Legacy Imaging Surveys',
       dataRelease: 'DR10',
@@ -103,7 +105,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
       'Interacting face-on and edge-on spirals linked by a luminous stream of stars and dust stripped during close passage.',
     scienceContext:
       'Faint tidal bridges frequently confuse automated classifiers when foreground stars overlap; human active-learning labels sharpen Zoobot.',
-    originalImageUrl: '/assets/galaxies/arp-87.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/arp-87.jpg`,
     provenance: {
       survey: 'DESI Legacy Imaging Surveys',
       dataRelease: 'DR10',
@@ -131,7 +133,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
       'Smooth golden spheroid wrapped in delicate concentric tidal shells left behind by ancient minor mergers.',
     scienceContext:
       'Try toggling Negative Plate (Invert) on the Blink Comparator or Star Atlas—low-surface-brightness shells leap out immediately.',
-    originalImageUrl: '/assets/galaxies/ngc-474.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/ngc-474.jpg`,
     provenance: {
       survey: 'DESI Legacy Imaging Surveys',
       dataRelease: 'DR10',
@@ -159,7 +161,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
       'Nearly circular ring of hot blue stars orbiting a detached yellow-red core with an almost empty gap between them.',
     scienceContext:
       'Rare ring morphologies represent <0.1% of local galaxies and remain prime targets for human anomaly discovery in wide surveys.',
-    originalImageUrl: '/assets/galaxies/hoags-object.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/hoags-object.jpg`,
     provenance: {
       survey: 'Sloan Digital Sky Survey',
       dataRelease: 'SDSS DR18 (gri composite)',
@@ -187,7 +189,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
       'Edge-on dusty disk aligned perpendicularly above a face-on spiral companion in the same survey frame.',
     scienceContext:
       'Models a live Zooniverse subject whose public workflow metadata omits sky coordinates prior to catalog publication.',
-    originalImageUrl: '/assets/galaxies/field-subject-alpha.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/field-subject-alpha.jpg`,
     provenance: {
       survey: 'Sloan Digital Sky Survey',
       dataRelease: 'SDSS DR18 Cutout Archive',
@@ -208,7 +210,7 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
     morphologyNote: 'Compact elongated companion piercing an expanding blue collisional ring.',
     scienceContext:
       'Models a pipeline candidate whose preliminary astrometry has not been cross-matched; Sky Garden withholds unverified coordinates.',
-    originalImageUrl: '/assets/galaxies/field-subject-beta.jpg',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/field-subject-beta.jpg`,
     provenance: {
       survey: 'DESI Legacy Imaging Surveys',
       dataRelease: 'DR9 Cutout Archive',

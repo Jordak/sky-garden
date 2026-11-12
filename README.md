@@ -4,6 +4,17 @@ Sky Garden is an offline desktop-browser prototype for a cozy **side-on pixel-ar
 
 > **Prototype Status:** This build uses a local demo bundle of eight open-licensed astronomical cutouts (`CC BY 4.0`). It requires no account, makes no network requests during play, and submits no live classifications to Galaxy Zoo or Zooniverse.
 
+## Live Browser Demo
+
+Play the hosted demo directly in any desktop browser with no download required: **[https://jordak.github.io/sky-garden/](https://jordak.github.io/sky-garden/)** (automatically built and deployed from `main` via GitHub Actions).
+
+## Scientific Integrity Guardrails
+
+- **Ungated Optical Inspection:** Hardware switches (`Invert`, `Contrast`, `2× Core`, `Arcmin Scale`) are unlocked from second zero and never sold or gated behind rewards.
+- **Zero Accuracy or Speed Pressure:** Each unique subject awards a flat, answer-agnostic `+3 ✦ Stardust` once upon completion with zero streak multipliers, countdowns, or speed bonuses.
+- **Immutable Scientific Source & Verified Coordinates:** Cutout pixels and verified `ICRS (J2000)` metadata live strictly on immutable `SourceGalaxy` records (`withheld`/`unverified` coordinates stay omitted rather than fabricated), completely separate from decorative sky placements (`PlacedGalaxy`).
+- **Clear Offline Practice Boundary:** Every classification action is explicitly labeled offline practice so volunteers never mistake sandbox interactions for live Galaxy Zoo consensus votes.
+
 ## Two Switchable Demo Profiles
 
 Toggle between profiles anytime in the top-left bar (`PROGRESSION` vs. `SANDBOX`); each saves independently in browser `localStorage` and also has a canonical JSON preset under `public/demos/`:
@@ -41,7 +52,7 @@ npm run preview   # Serve the production build locally
 
 Sky Garden layers two purpose-built renderers inside a `16:9` viewport:
 
-1. **Foreground Cutaway Observatory (`src/components/ObservatoryCutawayCanvas.tsx`):** A palette-locked `320×180` HTML5 `<canvas>` (`imageSmoothingEnabled = false`, `image-rendering: pixelated`) with transparent glasshouse dome panes, integer-grid ASCII-compiled pixel sprites (`src/pixel/pixelSprites.ts`), and a crisp `3×5` pixel bitmap font (`src/pixel/pixelFont.ts`).
+1. **Foreground Cutaway Observatory (`src/components/ObservatoryCutawayCanvas.tsx`):** A palette-locked `320×180` HTML5 `<canvas>` (`imageSmoothingEnabled = false`, `image-rendering: pixelated`) with transparent glasshouse dome panes, integer-grid ASCII-compiled pixel sprites (`src/pixel/pixelSprites.ts`), and a crisp proportional `4×5`/`5×5` pixel bitmap font (`src/pixel/pixelFont.ts`).
 2. **Panoramic Sky Backdrop (`src/components/ObservatoryStage.tsx`):** Normalized `[0..1]` DOM/SVG sky stage behind the pixel rafters so real, unpixelated survey cutouts float naturally via non-destructive CSS `screen` blending while preserving unmodified scientific pixels in the CRT and Star Atlas viewers.
 
 See [SKY_GARDEN_HANDOFF.md](./SKY_GARDEN_HANDOFF.md) for the project brief and [PROVENANCE.md](./PROVENANCE.md) for survey attributions.
