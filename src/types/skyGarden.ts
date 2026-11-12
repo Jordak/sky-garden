@@ -1,5 +1,7 @@
 export type SceneHemisphere = 'north' | 'south';
 
+export type DemoMode = 'progression' | 'sandbox';
+
 export type StationId = 'crt-desk' | 'atlas' | 'telescope' | 'dome-wheel' | 'workbench';
 
 export type RoomPropId =
@@ -13,6 +15,7 @@ export interface RoomPropDefinition {
   readonly id: RoomPropId;
   readonly name: string;
   readonly description: string;
+  readonly costStardust: number;
 }
 
 export type SkyCoordinates =
@@ -84,6 +87,7 @@ export interface CelestialDecorItem {
   readonly title: string;
   readonly subtitle: string;
   readonly glyphKind: 'open-cluster' | 'comet-wisp' | 'globular-haze' | 'diffraction-star';
+  readonly costStardust: number;
 }
 
 export type PlacedObjectKind = 'galaxy' | 'celestial_decor';
@@ -110,18 +114,21 @@ export interface SkyBackgroundPreset {
   readonly description: string;
   readonly gradientCss: string;
   readonly horizonGlowCss: string;
+  readonly costStardust: number;
 }
 
 export interface NebulaLayerPreset {
   readonly id: string;
   readonly name: string;
   readonly description: string;
+  readonly costStardust: number;
 }
 
 export interface WindowFramePreset {
   readonly id: string;
   readonly name: string;
   readonly description: string;
+  readonly costStardust: number;
 }
 
 export interface SceneComposition {
@@ -143,6 +150,14 @@ export interface PracticeObservation {
 
 export interface SavedScenesState {
   readonly schemaVersion: 1;
+  readonly demoMode: DemoMode;
+  readonly stardust: number;
+  readonly unlockedCollectionEntryIds: readonly string[];
+  readonly unlockedDecorIds: readonly string[];
+  readonly unlockedRoomProps: readonly RoomPropId[];
+  readonly unlockedBackgroundIds: readonly string[];
+  readonly unlockedNebulaIds: readonly string[];
+  readonly unlockedFrameIds: readonly string[];
   readonly selectedScene: SceneHemisphere;
   readonly updatedAtIso: string;
   readonly activeRoomProps: readonly RoomPropId[];

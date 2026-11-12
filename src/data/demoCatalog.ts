@@ -239,30 +239,40 @@ export const DEMO_COLLECTION_ENTRIES: readonly CollectionEntry[] = Object.freeze
   ),
 );
 
+export const STARDUST_PER_SUBJECT = 3;
+
+export const STARTER_BACKGROUND_ID = 'bg-atacama-zenith';
+export const STARTER_NEBULA_ID = 'nebula-none';
+export const STARTER_FRAME_ID = 'frame-arched-brass';
+
 export const CELESTIAL_DECOR_ITEMS: readonly CelestialDecorItem[] = Object.freeze([
   {
     decorId: 'decor-open-cluster',
     title: 'Seven-Sister Cluster',
     subtitle: 'Decorative open star cluster accent',
     glyphKind: 'open-cluster',
+    costStardust: 1,
   },
   {
     decorId: 'decor-comet-wisp',
     title: 'Ion-Tail Comet',
     subtitle: 'Decorative dust & ion tail accent',
     glyphKind: 'comet-wisp',
+    costStardust: 1,
   },
   {
     decorId: 'decor-globular-haze',
     title: 'Globular Star Swarm',
     subtitle: 'Decorative golden cluster accent',
     glyphKind: 'globular-haze',
+    costStardust: 1,
   },
   {
     decorId: 'decor-diffraction-star',
     title: 'Survey Beacon Star',
     subtitle: 'Decorative diffraction spike accent',
     glyphKind: 'diffraction-star',
+    costStardust: 1,
   },
 ]);
 
@@ -271,26 +281,31 @@ export const ROOM_PROPS: readonly RoomPropDefinition[] = Object.freeze([
     id: 'rug-crimson',
     name: 'Crimson Woven Rug',
     description: 'Warm Anatolian-style runner across the observatory floorboards',
+    costStardust: 1,
   },
   {
     id: 'cat-ginger',
     name: 'Ginger Observatory Cat',
     description: 'Naps on the cushioned window bench while you stargaze',
+    costStardust: 2,
   },
   {
     id: 'plant-fern',
     name: 'Bookshelf Roof Fern',
     description: 'Leafy greenhouse fern perched atop your astronomy volumes',
+    costStardust: 1,
   },
   {
     id: 'orrery-brass',
     name: 'Clockwork Brass Orrery',
     description: 'Gently orbiting mechanical planets on the curator workbench',
+    costStardust: 2,
   },
   {
     id: 'lights-amber',
     name: 'Amber Rafter Lights',
     description: 'Warm string bulbs draped along the glasshouse dome ribs',
+    costStardust: 1,
   },
 ]);
 
@@ -310,6 +325,7 @@ export const SKY_BACKGROUNDS: readonly SkyBackgroundPreset[] = Object.freeze([
       'radial-gradient(120% 95% at 50% 8%, #152145 0%, #090e21 55%, #04060e 100%)',
     horizonGlowCss:
       'linear-gradient(180deg, rgba(16, 28, 58, 0) 45%, rgba(62, 86, 138, 0.24) 100%)',
+    costStardust: 0,
   },
   {
     id: 'bg-subarctic-aurora',
@@ -319,6 +335,7 @@ export const SKY_BACKGROUNDS: readonly SkyBackgroundPreset[] = Object.freeze([
       'radial-gradient(110% 90% at 35% 15%, #113340 0%, #0a1629 56%, #050812 100%)',
     horizonGlowCss:
       'linear-gradient(165deg, rgba(68, 204, 166, 0.2) 0%, rgba(28, 82, 118, 0.08) 52%, rgba(8, 12, 24, 0) 100%)',
+    costStardust: 1,
   },
   {
     id: 'bg-austral-velvet',
@@ -328,6 +345,7 @@ export const SKY_BACKGROUNDS: readonly SkyBackgroundPreset[] = Object.freeze([
       'radial-gradient(120% 95% at 62% 16%, #28183e 0%, #100d26 54%, #06060f 100%)',
     horizonGlowCss:
       'linear-gradient(180deg, rgba(40, 22, 58, 0) 48%, rgba(168, 108, 82, 0.22) 100%)',
+    costStardust: 1,
   },
   {
     id: 'bg-astronomical-twilight',
@@ -337,6 +355,7 @@ export const SKY_BACKGROUNDS: readonly SkyBackgroundPreset[] = Object.freeze([
       'linear-gradient(180deg, #080e22 0%, #142447 52%, #322c4a 76%, #523840 100%)',
     horizonGlowCss:
       'linear-gradient(180deg, rgba(12, 18, 38, 0) 48%, rgba(232, 162, 98, 0.24) 100%)',
+    costStardust: 1,
   },
 ]);
 
@@ -345,21 +364,25 @@ export const NEBULA_LAYERS: readonly NebulaLayerPreset[] = Object.freeze([
     id: 'nebula-none',
     name: 'Clear Dark Sky',
     description: 'Starless dark backdrop so every star, cluster, and galaxy in your sky is yours',
+    costStardust: 0,
   },
   {
     id: 'nebula-cygnus-veil',
     name: 'Cygnus Filament Veil',
     description: 'Sapphire and rose supernova-remnant wisps across the upper dome',
+    costStardust: 1,
   },
   {
     id: 'nebula-carina-amber',
     name: 'Carina Warm Dust',
     description: 'Golden-copper molecular cloud glow drifting behind the rafters',
+    costStardust: 1,
   },
   {
     id: 'nebula-pleiades-mist',
     name: 'Merope Reflection Mist',
     description: 'Silky silver-blue reflection nebulosity brushed across the zenith',
+    costStardust: 1,
   },
 ]);
 
@@ -368,22 +391,69 @@ export const WINDOW_FRAMES: readonly WindowFramePreset[] = Object.freeze([
     id: 'frame-arched-brass',
     name: 'Arched Brass Glasshouse',
     description: 'Curved brass dome ribs with wide uninterrupted sky panes',
+    costStardust: 0,
   },
   {
     id: 'frame-timber-skylight',
     name: 'Timber Gable Observatory',
     description: 'Angled cedar roof beams framing the night sky',
+    costStardust: 1,
   },
   {
     id: 'frame-wide-cupola',
     name: 'Open Meridian Shutter',
     description: 'Retracted observatory dome shutters for maximum sky expanse',
+    costStardust: 1,
   },
 ]);
 
-export function createInitialScenesState(): SavedScenesState {
+export function createInitialProgressionState(): SavedScenesState {
   return {
     schemaVersion: 1,
+    demoMode: 'progression',
+    stardust: 0,
+    unlockedCollectionEntryIds: [],
+    unlockedDecorIds: [],
+    unlockedRoomProps: [],
+    unlockedBackgroundIds: [STARTER_BACKGROUND_ID],
+    unlockedNebulaIds: [STARTER_NEBULA_ID],
+    unlockedFrameIds: [STARTER_FRAME_ID],
+    selectedScene: 'north',
+    updatedAtIso: '2026-11-12T00:00:00.000Z',
+    activeRoomProps: [],
+    practiceLog: [],
+    scenes: {
+      north: {
+        hemisphere: 'north',
+        exhibitionTitle: 'First Light Study',
+        backgroundId: STARTER_BACKGROUND_ID,
+        nebulaLayerId: STARTER_NEBULA_ID,
+        windowFrameId: STARTER_FRAME_ID,
+        objects: [],
+      },
+      south: {
+        hemisphere: 'south',
+        exhibitionTitle: 'Southern First Light',
+        backgroundId: STARTER_BACKGROUND_ID,
+        nebulaLayerId: STARTER_NEBULA_ID,
+        windowFrameId: STARTER_FRAME_ID,
+        objects: [],
+      },
+    },
+  };
+}
+
+export function createInitialSandboxState(): SavedScenesState {
+  return {
+    schemaVersion: 1,
+    demoMode: 'sandbox',
+    stardust: 0,
+    unlockedCollectionEntryIds: DEMO_COLLECTION_ENTRIES.map((c) => c.entryId),
+    unlockedDecorIds: CELESTIAL_DECOR_ITEMS.map((d) => d.decorId),
+    unlockedRoomProps: ROOM_PROPS.map((p) => p.id),
+    unlockedBackgroundIds: SKY_BACKGROUNDS.map((b) => b.id),
+    unlockedNebulaIds: NEBULA_LAYERS.map((n) => n.id),
+    unlockedFrameIds: WINDOW_FRAMES.map((f) => f.id),
     selectedScene: 'north',
     updatedAtIso: '2026-11-12T00:00:00.000Z',
     activeRoomProps: [...DEFAULT_ROOM_PROPS],
@@ -487,6 +557,8 @@ export function createInitialScenesState(): SavedScenesState {
     },
   };
 }
+
+export const createInitialScenesState = createInitialSandboxState;
 
 const SOURCE_BY_ID = new Map(SOURCE_GALAXIES.map((g) => [g.id, g]));
 const COLLECTION_BY_ID = new Map(DEMO_COLLECTION_ENTRIES.map((c) => [c.entryId, c]));

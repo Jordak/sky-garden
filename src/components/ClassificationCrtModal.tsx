@@ -1,11 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { getCollectionEntryBySourceId, SOURCE_GALAXIES } from '../data/demoCatalog';
-import type { PracticeObservation } from '../types/skyGarden';
+import type { ObservationRewardResult } from '../state/useSkyGardenState';
+import type { DemoMode, PracticeObservation } from '../types/skyGarden';
 
 interface ClassificationCrtModalProps {
+  readonly demoMode: DemoMode;
+  readonly stardust: number;
+  readonly unlockedEntryIds: ReadonlySet<string>;
   readonly observedSourceIds: ReadonlySet<string>;
   readonly practiceCount: number;
-  readonly onRecordObservation: (obs: Omit<PracticeObservation, 'observedAtIso'>) => void;
+  readonly onRecordObservation: (obs: Omit<PracticeObservation, 'observedAtIso'>) => ObservationRewardResult;
   readonly onHangGalaxyAtScope: (collectionEntryId: string) => void;
   readonly onClose: () => void;
 }
@@ -35,16 +39,39 @@ const ODDITY_OPTIONS: readonly string[] = [
 ];
 
 export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
+  demoMode,
+  stardust,
+  unlockedEntryIds,
   observedSourceIds,
   practiceCount,
   onRecordObservation,
   onHangGalaxyAtScope,
   onClose,
 }) => {
+  const availableGalaxies = useMemo(() => {
+    if (demoMode === 'sandbox') return SOURCE_GALAXIES;
+    const unlockedList = SOURCE_GALAXIES.filter((g) => {
+      const entry = getCollectionEntryBySourceId(g.id);
+      return entry ? unlockedEntryIds.has(entry.entryId) : false;
+    });
+    const nextIncoming = SOURCE_GALAXIES.find((g) => {
+      const entry = getCollectionEntryBySourceId(g.id);
+      return entry ? !unlockedEntryIds.has(entry.entryId) : false;
+    });
+    return nextIncoming ? [...unlockedList, nextIncoming] : unlockedList;
+  }, [demoMode, unlockedEntryIds]);
+
   const initialIndex = useMemo(() => {
-    const firstUnobserved = SOURCE_GALAXIES.findIndex((g) => !observedSourceIds.has(g.id));
+    if (demoMode === 'progression') {
+      const incomingIdx = availableGalaxies.findIndex((g) => {
+        const entry = getCollectionEntryBySourceId(g.id);
+        return entry ? !unlockedEntryIds.has(entry.entryId) : false;
+      });
+      return incomingIdx >= 0 ? incomingIdx : 0;
+    }
+    const firstUnobserved = availableGalaxies.findIndex((g) => !observedSourceIds.has(g.id));
     return firstUnobserved >= 0 ? firstUnobserved : 0;
-  }, [observedSourceIds]);
+  }, [availableGalaxies, demoMode, observedSourceIds, unlockedEntryIds]);
 
   const [subjectIndex, setSubjectIndex] = useState<number>(initialIndex);
   const [invertPlate, setInvertPlate] = useState<boolean>(false);
@@ -55,10 +82,19 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
   const [primaryShape, setPrimaryShape] = useState<PrimaryShape>('Disk, Spiral, or Ring');
   const [detailChoice, setDetailChoice] = useState<string>('Barred Spiral Arms');
   const [oddityNote, setOddityNote] = useState<string>('None Stand Out');
-  const [justLoggedId, setJustLoggedId] = useState<string | null>(null);
+  const [lastReward, setLastReward] = useState<{
+    subjectId: string;
+    newlyUnlocked: boolean;
+    stardustEarned: number;
+  } | null>(null);
 
-  const subject = SOURCE_GALAXIES[subjectIndex];
+  const safeIndex = Math.min(subjectIndex, Math.max(0, availableGalaxies.length - 1));
+  const subject = availableGalaxies[safeIndex] ?? SOURCE_GALAXIES[0];
   const linkedEntry = getCollectionEntryBySourceId(subject.id);
+  const isSubjectUnlocked =
+    demoMode === 'sandbox' || (linkedEntry ? unlockedEntryIds.has(linkedEntry.entryId) : false);
+  const hasMoreIncoming =
+    demoMode === 'progression' && unlockedEntryIds.size < SOURCE_GALAXIES.length;
 
   const filterParts: string[] = [];
   if (invertPlate) filterParts.push('invert(1) hue-rotate(180deg)');
@@ -71,19 +107,37 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
   };
 
   const stepSubject = (delta: number) => {
-    const nextIdx = (subjectIndex + delta + SOURCE_GALAXIES.length) % SOURCE_GALAXIES.length;
+    if (availableGalaxies.length === 0) return;
+    const nextIdx = (safeIndex + delta + availableGalaxies.length) % availableGalaxies.length;
     setSubjectIndex(nextIdx);
-    setJustLoggedId(null);
+    setLastReward(null);
+  };
+
+  const goToNextIncoming = () => {
+    const incomingIdx = availableGalaxies.findIndex((g) => {
+      const entry = getCollectionEntryBySourceId(g.id);
+      return entry ? !unlockedEntryIds.has(entry.entryId) : false;
+    });
+    if (incomingIdx >= 0) {
+      setSubjectIndex(incomingIdx);
+      setLastReward(null);
+    } else {
+      stepSubject(1);
+    }
   };
 
   const handleLogObservation = () => {
-    onRecordObservation({
+    const reward = onRecordObservation({
       sourceGalaxyId: subject.id,
       primaryMorphology: primaryShape,
       detailChoice,
       oddityNote,
     });
-    setJustLoggedId(subject.id);
+    setLastReward({
+      subjectId: subject.id,
+      newlyUnlocked: reward.newlyUnlocked,
+      stardustEarned: reward.stardustEarned,
+    });
   };
 
   return (
@@ -105,6 +159,9 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
             <span className="pixel-tag tag-amber">PRACTICE TERMINAL · NOT LIVE RESEARCH</span>
           </div>
           <div className="crt-header-right">
+            {demoMode === 'progression' && (
+              <span className="pixel-tag tag-brass">✦ {stardust} STARDUST</span>
+            )}
             <span className="crt-tally">LOGGED: {practiceCount}</span>
             <button type="button" className="pixel-mini-btn" onClick={onClose}>
               [ESC] LEAVE DESK
@@ -114,20 +171,32 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
 
         <div className="crt-practice-disclaimer">
           Offline practice workflow on bundled open-licensed survey stamps. Inspection tools are
-          never gated, and stamps are never awarded for speed or picking a specific label.
+          never gated, and Stardust is never awarded for speed or picking a specific label.
         </div>
 
         <div className="crt-split-grid">
           {/* Left Optical Plate Viewport */}
           <div className="crt-plate-column">
             <div className="crt-subject-switcher">
-              <button type="button" className="pixel-mini-btn" onClick={() => stepSubject(-1)}>
+              <button
+                type="button"
+                className="pixel-mini-btn"
+                disabled={availableGalaxies.length <= 1}
+                onClick={() => stepSubject(-1)}
+              >
                 ◀ PREV
               </button>
               <span className="crt-subject-counter">
-                PLATE {subjectIndex + 1}/{SOURCE_GALAXIES.length} · {subject.catalogName}
+                {!isSubjectUnlocked
+                  ? `INCOMING SURVEY SUBJECT · ${safeIndex + 1}/${SOURCE_GALAXIES.length}`
+                  : `PLATE ${safeIndex + 1}/${availableGalaxies.length} · ${subject.catalogName}`}
               </span>
-              <button type="button" className="pixel-mini-btn" onClick={() => stepSubject(1)}>
+              <button
+                type="button"
+                className="pixel-mini-btn"
+                disabled={availableGalaxies.length <= 1}
+                onClick={() => stepSubject(1)}
+              >
                 NEXT ▶
               </button>
             </div>
@@ -135,7 +204,11 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
             <div className="crt-optical-viewport">
               <img
                 src={subject.originalImageUrl}
-                alt={`Survey cutout of ${subject.catalogName}`}
+                alt={
+                  isSubjectUnlocked
+                    ? `Survey cutout of ${subject.catalogName}`
+                    : 'Incoming unclassified galaxy survey cutout'
+                }
                 className="raw-cutout-img"
                 style={{
                   filter: plateFilterCss,
@@ -260,14 +333,30 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
               </div>
             </div>
 
-            {justLoggedId === subject.id ? (
+            {lastReward?.subjectId === subject.id ? (
               <div className="crt-logged-feedback" role="status">
-                <strong>★ PRACTICE OBSERVATION LOGGED ({subject.catalogName})</strong>
+                <strong>
+                  {lastReward.newlyUnlocked
+                    ? `★ PRACTICE OBSERVATION LOGGED — UNLOCKED ${subject.catalogName} (+${lastReward.stardustEarned} ✦ STARDUST)`
+                    : `★ PRACTICE OBSERVATION LOGGED (${subject.catalogName})`}
+                </strong>
                 <p>{subject.morphologyNote}</p>
+                {demoMode === 'progression' && !lastReward.newlyUnlocked && (
+                  <small>
+                    Already cataloged in your Star Atlas — Stardust is granted once per unique
+                    subject.
+                  </small>
+                )}
                 <div className="crt-logged-actions">
-                  <button type="button" className="pixel-mini-btn" onClick={() => stepSubject(1)}>
-                    NEXT PLATE ▶
-                  </button>
+                  {hasMoreIncoming ? (
+                    <button type="button" className="pixel-mini-btn" onClick={goToNextIncoming}>
+                      NEXT INCOMING SUBJECT ▶
+                    </button>
+                  ) : (
+                    <button type="button" className="pixel-mini-btn" onClick={() => stepSubject(1)}>
+                      NEXT PLATE ▶
+                    </button>
+                  )}
                   {linkedEntry && (
                     <button
                       type="button"

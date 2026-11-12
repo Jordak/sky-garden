@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "demoMode": "sandbox",
+  "stardust": 0,
+  "unlockedCollectionEntryIds": [
+    "col-demo-1-ngc-1300",
+    "col-demo-2-ngc-1365",
+    "col-demo-3-ngc-4565",
+    "col-demo-4-arp-87",
+    "col-demo-5-ngc-474",
+    "col-demo-6-hoags-object",
+    "col-demo-7-subject-alpha",
+    "col-demo-8-subject-beta"
+  ],
+  "unlockedDecorIds": [
+    "decor-open-cluster",
+    "decor-comet-wisp",
+    "decor-globular-haze",
+    "decor-diffraction-star"
+  ],
+  "unlockedRoomProps": [
+    "rug-crimson",
+    "cat-ginger",
+    "plant-fern",
+    "orrery-brass",
+    "lights-amber"
+  ],
+  "unlockedBackgroundIds": [
+    "bg-atacama-zenith",
+    "bg-subarctic-aurora",
+    "bg-austral-velvet",
+    "bg-astronomical-twilight"
+  ],
+  "unlockedNebulaIds": [
+    "nebula-none",
+    "nebula-cygnus-veil",
+    "nebula-carina-amber",
+    "nebula-pleiades-mist"
+  ],
+  "unlockedFrameIds": [
+    "frame-arched-brass",
+    "frame-timber-skylight",
+    "frame-wide-cupola"
+  ],
+  "selectedScene": "north",
+  "updatedAtIso": "2026-11-12T00:00:00.000Z",
+  "activeRoomProps": [
+    "rug-crimson",
+    "cat-ginger",
+    "plant-fern",
+    "lights-amber"
+  ],
+  "practiceLog": [],
+  "scenes": {
+    "north": {
+      "hemisphere": "north",
+      "exhibitionTitle": "Quiet Study of Rings & Bridges",
+      "backgroundId": "bg-atacama-zenith",
+      "nebulaLayerId": "nebula-pleiades-mist",
+      "windowFrameId": "frame-arched-brass",
+      "objects": [
+        {
+          "instanceId": "seed-north-needle",
+          "kind": "galaxy",
+          "refId": "col-demo-3-ngc-4565",
+          "scene": "north",
+          "x": 0.27,
+          "y": 0.34,
+          "scale": 1.18,
+          "rotationDeg": -12,
+          "layer": 1
+        },
+        {
+          "instanceId": "seed-north-arp87",
+          "kind": "galaxy",
+          "refId": "col-demo-4-arp-87",
+          "scene": "north",
+          "x": 0.67,
+          "y": 0.29,
+          "scale": 1.05,
+          "rotationDeg": 14,
+          "layer": 2
+        },
+        {
+          "instanceId": "seed-north-hoag",
+          "kind": "galaxy",
+          "refId": "col-demo-6-hoags-object",
+          "scene": "north",
+          "x": 0.48,
+          "y": 0.48,
+          "scale": 0.88,
+          "rotationDeg": 0,
+          "layer": 3
+        },
+        {
+          "instanceId": "seed-north-cluster",
+          "kind": "celestial_decor",
+          "refId": "decor-open-cluster",
+          "scene": "north",
+          "x": 0.81,
+          "y": 0.46,
+          "scale": 0.9,
+          "rotationDeg": 8,
+          "layer": 0
+        }
+      ]
+    },
+    "south": {
+      "hemisphere": "south",
+      "exhibitionTitle": "Fornax & Eridanus Drift",
+      "backgroundId": "bg-austral-velvet",
+      "nebulaLayerId": "nebula-carina-amber",
+      "windowFrameId": "frame-arched-brass",
+      "objects": [
+        {
+          "instanceId": "seed-south-ngc1365",
+          "kind": "galaxy",
+          "refId": "col-demo-2-ngc-1365",
+          "scene": "south",
+          "x": 0.35,
+          "y": 0.35,
+          "scale": 1.22,
+          "rotationDeg": -18,
+          "layer": 1
+        },
+        {
+          "instanceId": "seed-south-ngc1300",
+          "kind": "galaxy",
+          "refId": "col-demo-1-ngc-1300",
+          "scene": "south",
+          "x": 0.68,
+          "y": 0.34,
+          "scale": 1.1,
+          "rotationDeg": 10,
+          "layer": 2
+        },
+        {
+          "instanceId": "seed-south-comet",
+          "kind": "celestial_decor",
+          "refId": "decor-comet-wisp",
+          "scene": "south",
+          "x": 0.22,
+          "y": 0.22,
+          "scale": 0.95,
+          "rotationDeg": -8,
+          "layer": 0
+        }
+      ]
+    }
+  }
+}

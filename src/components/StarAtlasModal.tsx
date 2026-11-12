@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { DEMO_COLLECTION_ENTRIES, getSourceGalaxy } from '../data/demoCatalog';
-import type { SceneHemisphere } from '../types/skyGarden';
+import type { DemoMode, SceneHemisphere } from '../types/skyGarden';
 
 interface StarAtlasModalProps {
+  readonly demoMode: DemoMode;
   readonly inspectedCollectionEntryId: string;
   readonly activeHemisphere: SceneHemisphere;
+  readonly unlockedEntryIds: ReadonlySet<string>;
   readonly observedSourceIds: ReadonlySet<string>;
   readonly onSelectEntry: (entryId: string) => void;
   readonly onHangInSky: (entryId: string) => void;
+  readonly onOpenCrtDesk: () => void;
   readonly onClose: () => void;
 }
 
@@ -81,11 +84,14 @@ const AllSkyChartSvg: React.FC<{ raDeg: number; decDeg: number; label: string }>
 };
 
 export const StarAtlasModal: React.FC<StarAtlasModalProps> = ({
+  demoMode,
   inspectedCollectionEntryId,
   activeHemisphere,
+  unlockedEntryIds,
   observedSourceIds,
   onSelectEntry,
   onHangInSky,
+  onOpenCrtDesk,
   onClose,
 }) => {
   const [invertPlate, setInvertPlate] = useState<boolean>(false);
@@ -93,9 +99,48 @@ export const StarAtlasModal: React.FC<StarAtlasModalProps> = ({
   const [coreZoom, setCoreZoom] = useState<boolean>(false);
   const [showReticle, setShowReticle] = useState<boolean>(true);
 
+  const unlockedEntries = DEMO_COLLECTION_ENTRIES.filter((c) => unlockedEntryIds.has(c.entryId));
+
+  if (unlockedEntries.length === 0) {
+    return (
+      <div
+        className="pixel-modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="atlas-modal-title"
+        onClick={onClose}
+      >
+        <div className="pixel-frame atlas-folio-frame" onClick={(e) => e.stopPropagation()}>
+          <div className="crt-bezel-header atlas-header">
+            <div className="crt-title-cluster">
+              <h2 id="atlas-modal-title" className="pixel-heading">
+                ILLUMINATED STAR ATLAS
+              </h2>
+              <span className="pixel-tag tag-brass">
+                {demoMode === 'progression' ? 'PROGRESSION FOLIO · 0 CATALOGED' : 'DEMO COLLECTION'}
+              </span>
+            </div>
+            <button type="button" className="pixel-mini-btn" onClick={onClose}>
+              [ESC] CLOSE ATLAS
+            </button>
+          </div>
+          <div className="atlas-empty-state" data-testid="atlas-empty-state">
+            <h3 className="atlas-subject-heading">NO GALAXIES CATALOGED YET</h3>
+            <p className="atlas-note">
+              Just like a live Zooniverse workflow, Sky Garden does not reveal galaxies in your
+              atlas until you classify incoming survey subjects at the Blink Comparator CRT.
+            </p>
+            <button type="button" className="pixel-btn-primary" onClick={onOpenCrtDesk}>
+              GO TO BLINK COMPARATOR DESK →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const selectedEntry =
-    DEMO_COLLECTION_ENTRIES.find((c) => c.entryId === inspectedCollectionEntryId) ??
-    DEMO_COLLECTION_ENTRIES[0];
+    unlockedEntries.find((c) => c.entryId === inspectedCollectionEntryId) ?? unlockedEntries[0];
   const galaxy = getSourceGalaxy(selectedEntry.sourceGalaxyId)!;
 
   const filterParts: string[] = [];
@@ -117,7 +162,10 @@ export const StarAtlasModal: React.FC<StarAtlasModalProps> = ({
             <h2 id="atlas-modal-title" className="pixel-heading">
               ILLUMINATED STAR ATLAS
             </h2>
-            <span className="pixel-tag tag-brass">DEMO COLLECTION · UNMODIFIED SOURCES</span>
+            <span className="pixel-tag tag-brass">
+              {unlockedEntries.length}/{DEMO_COLLECTION_ENTRIES.length} CATALOGED · UNMODIFIED
+              SOURCES
+            </span>
           </div>
           <button type="button" className="pixel-mini-btn" onClick={onClose}>
             [ESC] CLOSE ATLAS
@@ -128,11 +176,12 @@ export const StarAtlasModal: React.FC<StarAtlasModalProps> = ({
           {/* Left Page: Folio Index */}
           <div className="atlas-left-page">
             <p className="atlas-page-caption">
-              Bundled CC BY 4.0 survey plates. Removing a galaxy from the sky never deletes it from
-              this atlas.
+              {demoMode === 'progression'
+                ? 'Subjects you have logged at the Blink Comparator. Removing a galaxy from your sky never deletes its scientific record.'
+                : 'Bundled CC BY 4.0 survey plates. Removing a galaxy from the sky never deletes it from this atlas.'}
             </p>
             <ul className="atlas-entry-list" aria-label="Demo Galaxy Collection">
-              {DEMO_COLLECTION_ENTRIES.map((entry) => {
+              {unlockedEntries.map((entry) => {
                 const g = getSourceGalaxy(entry.sourceGalaxyId);
                 if (!g) return null;
                 const isSelected = entry.entryId === selectedEntry.entryId;

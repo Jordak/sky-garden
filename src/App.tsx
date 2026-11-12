@@ -5,9 +5,10 @@ import { ObservatoryStage } from './components/ObservatoryStage';
 import { SkyEditSatchelHud } from './components/SkyEditSatchelHud';
 import { StarAtlasModal } from './components/StarAtlasModal';
 import { WorkbenchModal } from './components/WorkbenchModal';
+import { CELESTIAL_DECOR_ITEMS, NEBULA_LAYERS, ROOM_PROPS, SKY_BACKGROUNDS, WINDOW_FRAMES } from './data/demoCatalog';
 import { useSkyGardenState } from './state/useSkyGardenState';
 import { serializeScenesToJson } from './storage/sceneStorage';
-import type { StationId } from './types/skyGarden';
+import type { RoomPropId, StationId } from './types/skyGarden';
 
 export const App: React.FC = () => {
   const {
@@ -25,6 +26,7 @@ export const App: React.FC = () => {
     setInspectedCollectionEntryId,
     selectHemisphere,
     toggleHemisphere,
+    switchDemoMode,
     placeItem,
     beginContinuousGesture,
     updateObjectLive,
@@ -32,8 +34,9 @@ export const App: React.FC = () => {
     patchObjectDiscrete,
     reorderObjectLayer,
     removePlacedObject,
-    setSceneAppearance,
-    toggleRoomProp,
+    toggleOrUnlockRoomProp,
+    unlockCelestialDecor,
+    selectOrUnlockAppearance,
     recordPracticeObservation,
     clearCurrentScene,
     resetStarterScenes,
@@ -49,9 +52,75 @@ export const App: React.FC = () => {
 
   const skyEditMode = activeStation === 'telescope' && !exhibitionMode;
 
+  const unlockedEntryIds = useMemo(
+    () => new Set(scenesState.unlockedCollectionEntryIds),
+    [scenesState.unlockedCollectionEntryIds],
+  );
+  const unlockedDecorIds = useMemo(
+    () => new Set(scenesState.unlockedDecorIds),
+    [scenesState.unlockedDecorIds],
+  );
+  const unlockedRoomProps = useMemo(
+    () => new Set(scenesState.unlockedRoomProps),
+    [scenesState.unlockedRoomProps],
+  );
+  const unlockedBackgroundIds = useMemo(
+    () => new Set(scenesState.unlockedBackgroundIds),
+    [scenesState.unlockedBackgroundIds],
+  );
+  const unlockedNebulaIds = useMemo(
+    () => new Set(scenesState.unlockedNebulaIds),
+    [scenesState.unlockedNebulaIds],
+  );
+  const unlockedFrameIds = useMemo(
+    () => new Set(scenesState.unlockedFrameIds),
+    [scenesState.unlockedFrameIds],
+  );
+
   const observedSourceIds = useMemo(
     () => new Set(scenesState.practiceLog.map((entry) => entry.sourceGalaxyId)),
     [scenesState.practiceLog],
+  );
+
+  const handleToggleOrUnlockRoomProp = useCallback(
+    (propId: RoomPropId) => {
+      const res = toggleOrUnlockRoomProp(propId);
+      if (res.unlockedNow) {
+        const def = ROOM_PROPS.find((p) => p.id === propId);
+        if (def) setStatusToast(`Unlocked & placed ${def.name}!`);
+      }
+    },
+    [toggleOrUnlockRoomProp],
+  );
+
+  const handleUnlockDecor = useCallback(
+    (decorId: string) => {
+      const ok = unlockCelestialDecor(decorId);
+      if (ok) {
+        const def = CELESTIAL_DECOR_ITEMS.find((d) => d.decorId === decorId);
+        if (def) setStatusToast(`Unlocked ${def.title} for your sky dome!`);
+      }
+    },
+    [unlockCelestialDecor],
+  );
+
+  const handleSelectOrUnlockAppearance = useCallback(
+    (patch: {
+      backgroundId?: string;
+      nebulaLayerId?: string;
+      windowFrameId?: string;
+      exhibitionTitle?: string;
+    }) => {
+      const res = selectOrUnlockAppearance(patch);
+      if (res.unlockedNow) {
+        const label =
+          (patch.backgroundId && SKY_BACKGROUNDS.find((b) => b.id === patch.backgroundId)?.name) ||
+          (patch.nebulaLayerId && NEBULA_LAYERS.find((n) => n.id === patch.nebulaLayerId)?.name) ||
+          (patch.windowFrameId && WINDOW_FRAMES.find((f) => f.id === patch.windowFrameId)?.name);
+        if (label) setStatusToast(`Unlocked & applied ${label}!`);
+      }
+    },
+    [selectOrUnlockAppearance],
   );
 
   const handleTriggerStation = useCallback(
@@ -159,7 +228,34 @@ export const App: React.FC = () => {
                   ✦
                 </span>
                 <strong>SKY GARDEN</strong>
-                <span className="pixel-micro-tag status-demo">DEMO</span>
+                <div className="pixel-mode-switch" role="group" aria-label="Demo Mode">
+                  <button
+                    type="button"
+                    data-testid="mode-progression-btn"
+                    aria-pressed={scenesState.demoMode === 'progression'}
+                    className={`pixel-hud-btn ${scenesState.demoMode === 'progression' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setActiveStation(null);
+                      switchDemoMode('progression');
+                    }}
+                    title="Start bare & unlock galaxies, Star Atlas records, and furnishings via classifications"
+                  >
+                    PROGRESSION
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="mode-sandbox-btn"
+                    aria-pressed={scenesState.demoMode === 'sandbox'}
+                    className={`pixel-hud-btn ${scenesState.demoMode === 'sandbox' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setActiveStation(null);
+                      switchDemoMode('sandbox');
+                    }}
+                    title="All galaxies, Star Atlas entries, and sky items unlocked immediately"
+                  >
+                    SANDBOX
+                  </button>
+                </div>
               </div>
 
               <nav className="pixel-station-shortcuts" aria-label="Observatory Stations">
@@ -236,6 +332,21 @@ export const App: React.FC = () => {
           )}
 
           <div className="pixel-hud-right">
+            {!exhibitionMode && (
+              <span
+                className="pixel-stardust-badge"
+                data-testid="stardust-counter"
+                title={
+                  scenesState.demoMode === 'progression'
+                    ? 'Earn +3 Stardust for each unique galaxy you classify at the Blink Comparator'
+                    : 'Sandbox Mode: All catalog items unlocked'
+                }
+              >
+                {scenesState.demoMode === 'progression'
+                  ? `✦ ${scenesState.stardust} STARDUST`
+                  : '✦ SANDBOX'}
+              </span>
+            )}
             <button
               type="button"
               aria-pressed={exhibitionMode}
@@ -281,6 +392,9 @@ export const App: React.FC = () => {
 
           {/* Layer 2: Side-on 320x180 Celeste-style cutaway pixel-art observatory */}
           <ObservatoryCutawayCanvas
+            demoMode={scenesState.demoMode}
+            stardust={scenesState.stardust}
+            unlockedGalaxyCount={unlockedEntryIds.size}
             hemisphere={activeHemisphere}
             windowFrameId={activeScene.windowFrameId}
             activeRoomProps={scenesState.activeRoomProps}
@@ -311,14 +425,20 @@ export const App: React.FC = () => {
         {/* Layer 3A: Bottom Pixel Satchel Dock when peering through the Telescope */}
         {skyEditMode && (
           <SkyEditSatchelHud
+            demoMode={scenesState.demoMode}
+            stardust={scenesState.stardust}
             scene={activeScene}
             selectedObject={selectedObject}
+            unlockedEntryIds={unlockedEntryIds}
+            unlockedDecorIds={unlockedDecorIds}
             observedSourceIds={observedSourceIds}
             canUndo={canUndo}
             canRedo={canRedo}
             onPlaceItem={(kind, refId) => {
               placeItem(kind, refId);
             }}
+            onUnlockDecor={handleUnlockDecor}
+            onOpenCrtDesk={() => setActiveStation('crt-desk')}
             onPatchDiscrete={patchObjectDiscrete}
             onReorderLayer={reorderObjectLayer}
             onRemoveObject={removePlacedObject}
@@ -336,6 +456,9 @@ export const App: React.FC = () => {
         {/* Layer 3B: Diegetic Station Modals */}
         {activeStation === 'crt-desk' && (
           <ClassificationCrtModal
+            demoMode={scenesState.demoMode}
+            stardust={scenesState.stardust}
+            unlockedEntryIds={unlockedEntryIds}
             observedSourceIds={observedSourceIds}
             practiceCount={scenesState.practiceLog.length}
             onRecordObservation={recordPracticeObservation}
@@ -349,24 +472,35 @@ export const App: React.FC = () => {
 
         {activeStation === 'atlas' && (
           <StarAtlasModal
+            demoMode={scenesState.demoMode}
             inspectedCollectionEntryId={inspectedCollectionEntryId}
             activeHemisphere={activeHemisphere}
+            unlockedEntryIds={unlockedEntryIds}
             observedSourceIds={observedSourceIds}
             onSelectEntry={setInspectedCollectionEntryId}
             onHangInSky={(entryId) => {
               placeItem('galaxy', entryId);
               setActiveStation('telescope');
             }}
+            onOpenCrtDesk={() => setActiveStation('crt-desk')}
             onClose={() => setActiveStation(null)}
           />
         )}
 
         {activeStation === 'workbench' && (
           <WorkbenchModal
+            demoMode={scenesState.demoMode}
+            stardust={scenesState.stardust}
             scene={activeScene}
             activeRoomProps={scenesState.activeRoomProps}
-            onToggleRoomProp={toggleRoomProp}
-            onSetSceneAppearance={setSceneAppearance}
+            unlockedRoomProps={unlockedRoomProps}
+            unlockedDecorIds={unlockedDecorIds}
+            unlockedBackgroundIds={unlockedBackgroundIds}
+            unlockedNebulaIds={unlockedNebulaIds}
+            unlockedFrameIds={unlockedFrameIds}
+            onToggleOrUnlockRoomProp={handleToggleOrUnlockRoomProp}
+            onUnlockDecor={handleUnlockDecor}
+            onSelectOrUnlockAppearance={handleSelectOrUnlockAppearance}
             onExportJson={handleExportJson}
             onImportJsonFile={handleImportFile}
             onResetDemo={resetStarterScenes}

@@ -281,9 +281,26 @@ input {
 }
 
 .pixel-station-shortcuts,
-.pixel-hemi-switch {
+.pixel-hemi-switch,
+.pixel-mode-switch {
   display: inline-flex;
   gap: 4px;
+}
+
+.pixel-mode-switch .pixel-hud-btn {
+  padding: 2px 6px;
+  font-size: 0.62rem;
+}
+
+.pixel-stardust-badge {
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: #23180f;
+  border: 2px solid var(--amber-glow);
+  color: var(--candle-cream);
+  box-shadow: 2px 2px 0 #000000;
 }
 
 .pixel-hud-btn {
@@ -1144,6 +1161,54 @@ input {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.satchel-empty-box,
+.atlas-empty-state {
+  padding: 16px;
+  background: var(--night-mid);
+  border: 2px dashed var(--brass-mid);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.satchel-empty-box {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 0.72rem;
+  color: var(--star-ice);
+}
+
+.satchel-slot-card.is-locked {
+  opacity: 0.74;
+  border-style: dashed;
+}
+
+.slot-place-btn.btn-unlock {
+  background: #23180f;
+  border-color: var(--amber-glow);
+  color: var(--candle-cream);
+}
+
+.slot-place-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.workbench-prop-btn.is-locked,
+.crt-choice-btn.is-locked {
+  border-style: dashed;
+  color: var(--text-dim);
+}
+
+.workbench-prop-btn:disabled,
+.crt-choice-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 @media (max-width: 860px) {

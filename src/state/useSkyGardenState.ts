@@ -1,20 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  createInitialScenesState,
+  createInitialProgressionState,
+  createInitialSandboxState,
   DEMO_COLLECTION_ENTRIES,
+  getCelestialDecor,
+  getCollectionEntryBySourceId,
   getSourceGalaxyForCollectionEntry,
+  NEBULA_LAYERS,
+  ROOM_PROPS,
+  SKY_BACKGROUNDS,
+  STARDUST_PER_SUBJECT,
+  WINDOW_FRAMES,
 } from '../data/demoCatalog';
 import {
   clampCoordX,
   clampCoordY,
   clampScale,
+  loadActiveDemoMode,
   loadScenesFromStorage,
   normalizeLayerOrder,
   normalizeRotation,
   parseImportedScenesJson,
+  saveActiveDemoMode,
   saveScenesToStorage,
 } from '../storage/sceneStorage';
 import type {
+  DemoMode,
   PlacedObject,
   PlacedObjectKind,
   PracticeObservation,
@@ -33,6 +44,12 @@ export interface ObjectTransformPatch {
   readonly rotationDeg?: number;
 }
 
+export interface ObservationRewardResult {
+  readonly newlyUnlocked: boolean;
+  readonly stardustEarned: number;
+  readonly collectionEntryId: string | null;
+}
+
 function makeInstanceId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
@@ -41,7 +58,10 @@ function makeInstanceId(prefix: string): string {
 }
 
 export function useSkyGardenState() {
-  const initialLoad = useMemo(() => loadScenesFromStorage(), []);
+  const initialLoad = useMemo(() => {
+    const mode = loadActiveDemoMode();
+    return loadScenesFromStorage(undefined, mode);
+  }, []);
 
   const [scenesState, setScenesState] = useState<SavedScenesState>(initialLoad.state);
   const [past, setPast] = useState<SavedScenesState[]>([]);
@@ -54,7 +74,8 @@ export function useSkyGardenState() {
   });
 
   const [inspectedCollectionEntryId, setInspectedCollectionEntryId] = useState<string>(
-    () => DEMO_COLLECTION_ENTRIES[0].entryId,
+    () =>
+      initialLoad.state.unlockedCollectionEntryIds[0] ?? DEMO_COLLECTION_ENTRIES[0].entryId,
   );
 
   const [storageWarning, setStorageWarning] = useState<string | null>(initialLoad.warning);
@@ -417,24 +438,222 @@ export function useSkyGardenState() {
     [commitChange],
   );
 
-  const recordPracticeObservation = useCallback(
-    (obs: Omit<PracticeObservation, 'observedAtIso'>) => {
+  const toggleOrUnlockRoomProp = useCallback(
+    (propId: RoomPropId): { ok: boolean; unlockedNow: boolean } => {
+      const current = scenesRef.current;
+      if (current.demoMode === 'sandbox' || current.unlockedRoomProps.includes(propId)) {
+        toggleRoomProp(propId);
+        return { ok: true, unlockedNow: false };
+      }
+      const def = ROOM_PROPS.find((p) => p.id === propId);
+      if (!def || current.stardust < def.costStardust) {
+        return { ok: false, unlockedNow: false };
+      }
       commitChange(
-        (prev) => ({
-          ...prev,
-          practiceLog: [
-            ...prev.practiceLog,
-            {
-              ...obs,
-              observedAtIso: new Date().toISOString(),
-            },
-          ],
-        }),
+        (prev) => {
+          if (prev.unlockedRoomProps.includes(propId) || prev.stardust < def.costStardust) {
+            return prev;
+          }
+          return {
+            ...prev,
+            stardust: prev.stardust - def.costStardust,
+            unlockedRoomProps: [...prev.unlockedRoomProps, propId],
+            activeRoomProps: prev.activeRoomProps.includes(propId)
+              ? prev.activeRoomProps
+              : [...prev.activeRoomProps, propId],
+          };
+        },
         false,
       );
+      return { ok: true, unlockedNow: true };
+    },
+    [commitChange, toggleRoomProp],
+  );
+
+  const unlockCelestialDecor = useCallback(
+    (decorId: string): boolean => {
+      const current = scenesRef.current;
+      if (current.demoMode === 'sandbox' || current.unlockedDecorIds.includes(decorId)) {
+        return true;
+      }
+      const decor = getCelestialDecor(decorId);
+      if (!decor || current.stardust < decor.costStardust) {
+        return false;
+      }
+      commitChange(
+        (prev) => {
+          if (prev.unlockedDecorIds.includes(decorId) || prev.stardust < decor.costStardust) {
+            return prev;
+          }
+          return {
+            ...prev,
+            stardust: prev.stardust - decor.costStardust,
+            unlockedDecorIds: [...prev.unlockedDecorIds, decorId],
+          };
+        },
+        false,
+      );
+      return true;
     },
     [commitChange],
   );
+
+  const selectOrUnlockAppearance = useCallback(
+    (patch: {
+      backgroundId?: string;
+      nebulaLayerId?: string;
+      windowFrameId?: string;
+      exhibitionTitle?: string;
+    }): { ok: boolean; unlockedNow: boolean } => {
+      if (patch.exhibitionTitle !== undefined) {
+        setSceneAppearance({ exhibitionTitle: patch.exhibitionTitle });
+        return { ok: true, unlockedNow: false };
+      }
+
+      const current = scenesRef.current;
+      if (current.demoMode === 'sandbox') {
+        setSceneAppearance(patch);
+        return { ok: true, unlockedNow: false };
+      }
+
+      let requiredCost = 0;
+      let unlockKind: 'bg' | 'nebula' | 'frame' | null = null;
+      let unlockId = '';
+
+      if (patch.backgroundId && !current.unlockedBackgroundIds.includes(patch.backgroundId)) {
+        const bg = SKY_BACKGROUNDS.find((b) => b.id === patch.backgroundId);
+        if (!bg) return { ok: false, unlockedNow: false };
+        requiredCost = bg.costStardust;
+        unlockKind = 'bg';
+        unlockId = bg.id;
+      } else if (patch.nebulaLayerId && !current.unlockedNebulaIds.includes(patch.nebulaLayerId)) {
+        const neb = NEBULA_LAYERS.find((n) => n.id === patch.nebulaLayerId);
+        if (!neb) return { ok: false, unlockedNow: false };
+        requiredCost = neb.costStardust;
+        unlockKind = 'nebula';
+        unlockId = neb.id;
+      } else if (patch.windowFrameId && !current.unlockedFrameIds.includes(patch.windowFrameId)) {
+        const frame = WINDOW_FRAMES.find((f) => f.id === patch.windowFrameId);
+        if (!frame) return { ok: false, unlockedNow: false };
+        requiredCost = frame.costStardust;
+        unlockKind = 'frame';
+        unlockId = frame.id;
+      }
+
+      if (!unlockKind) {
+        setSceneAppearance(patch);
+        return { ok: true, unlockedNow: false };
+      }
+
+      if (current.stardust < requiredCost) {
+        return { ok: false, unlockedNow: false };
+      }
+
+      commitChange(
+        (prev) => {
+          if (prev.stardust < requiredCost) return prev;
+          const hemi = prev.selectedScene;
+          const curScene = prev.scenes[hemi];
+          return {
+            ...prev,
+            stardust: prev.stardust - requiredCost,
+            unlockedBackgroundIds:
+              unlockKind === 'bg' && !prev.unlockedBackgroundIds.includes(unlockId)
+                ? [...prev.unlockedBackgroundIds, unlockId]
+                : prev.unlockedBackgroundIds,
+            unlockedNebulaIds:
+              unlockKind === 'nebula' && !prev.unlockedNebulaIds.includes(unlockId)
+                ? [...prev.unlockedNebulaIds, unlockId]
+                : prev.unlockedNebulaIds,
+            unlockedFrameIds:
+              unlockKind === 'frame' && !prev.unlockedFrameIds.includes(unlockId)
+                ? [...prev.unlockedFrameIds, unlockId]
+                : prev.unlockedFrameIds,
+            scenes: {
+              ...prev.scenes,
+              [hemi]: {
+                ...curScene,
+                backgroundId: patch.backgroundId ?? curScene.backgroundId,
+                nebulaLayerId: patch.nebulaLayerId ?? curScene.nebulaLayerId,
+                windowFrameId: patch.windowFrameId ?? curScene.windowFrameId,
+              },
+            },
+          };
+        },
+        false,
+      );
+      return { ok: true, unlockedNow: true };
+    },
+    [commitChange, setSceneAppearance],
+  );
+
+  const recordPracticeObservation = useCallback(
+    (obs: Omit<PracticeObservation, 'observedAtIso'>): ObservationRewardResult => {
+      const entry = getCollectionEntryBySourceId(obs.sourceGalaxyId);
+      const current = scenesRef.current;
+      const isNewProgressionUnlock =
+        current.demoMode === 'progression' &&
+        Boolean(entry) &&
+        !current.unlockedCollectionEntryIds.includes(entry!.entryId);
+      const stardustEarned = isNewProgressionUnlock ? STARDUST_PER_SUBJECT : 0;
+
+      commitChange(
+        (prev) => {
+          const canUnlock =
+            prev.demoMode === 'progression' &&
+            Boolean(entry) &&
+            !prev.unlockedCollectionEntryIds.includes(entry!.entryId);
+          return {
+            ...prev,
+            stardust: canUnlock ? prev.stardust + STARDUST_PER_SUBJECT : prev.stardust,
+            unlockedCollectionEntryIds: canUnlock
+              ? [...prev.unlockedCollectionEntryIds, entry!.entryId]
+              : prev.unlockedCollectionEntryIds,
+            practiceLog: [
+              ...prev.practiceLog,
+              {
+                ...obs,
+                observedAtIso: new Date().toISOString(),
+              },
+            ],
+          };
+        },
+        false,
+      );
+
+      if (entry) {
+        setInspectedCollectionEntryId(entry.entryId);
+      }
+
+      return {
+        newlyUnlocked: isNewProgressionUnlock,
+        stardustEarned,
+        collectionEntryId: entry?.entryId ?? null,
+      };
+    },
+    [commitChange],
+  );
+
+  const switchDemoMode = useCallback((nextMode: DemoMode) => {
+    if (nextMode === scenesRef.current.demoMode) return;
+    saveActiveDemoMode(nextMode);
+    const loaded = loadScenesFromStorage(undefined, nextMode);
+    if (loaded.storageAvailable && !loaded.hadSavedData && loaded.warning === null) {
+      saveScenesToStorage(loaded.state);
+    }
+    scenesRef.current = loaded.state;
+    setScenesState(loaded.state);
+    setPast([]);
+    setFuture([]);
+    setStorageHealthy(loaded.storageAvailable);
+    setStorageWarning(loaded.warning);
+    const nextObjects = loaded.state.scenes[loaded.state.selectedScene].objects;
+    const firstGalaxy = nextObjects.find((o) => o.kind === 'galaxy');
+    setSelectedInstanceId(firstGalaxy?.instanceId ?? nextObjects[0]?.instanceId ?? null);
+    setInspectedCollectionEntryId(
+      loaded.state.unlockedCollectionEntryIds[0] ?? DEMO_COLLECTION_ENTRIES[0].entryId,
+    );
+  }, []);
 
   const clearCurrentScene = useCallback(() => {
     commitChange((prev) => {
@@ -456,14 +675,25 @@ export function useSkyGardenState() {
   }, [commitChange]);
 
   const resetStarterScenes = useCallback(() => {
-    const starter = createInitialScenesState();
-    commitChange(() => ({
+    const mode = scenesRef.current.demoMode;
+    const starter =
+      mode === 'progression' ? createInitialProgressionState() : createInitialSandboxState();
+    const next: SavedScenesState = {
       ...starter,
       selectedScene: scenesRef.current.selectedScene,
-    }));
-    const firstObj = starter.scenes[scenesRef.current.selectedScene].objects[0] ?? null;
+      updatedAtIso: new Date().toISOString(),
+    };
+    scenesRef.current = next;
+    setScenesState(next);
+    setPast([]);
+    setFuture([]);
+    persistIfDirty(next);
+    const firstObj = next.scenes[next.selectedScene].objects[0] ?? null;
     setSelectedInstanceId(firstObj?.instanceId ?? null);
-  }, [commitChange]);
+    setInspectedCollectionEntryId(
+      next.unlockedCollectionEntryIds[0] ?? DEMO_COLLECTION_ENTRIES[0].entryId,
+    );
+  }, [persistIfDirty]);
 
   const undo = useCallback(() => {
     if (past.length === 0) return;
@@ -499,7 +729,12 @@ export function useSkyGardenState() {
       if ('error' in parsed) {
         return { ok: false, error: parsed.error };
       }
-      commitChange(() => parsed.state);
+      saveActiveDemoMode(parsed.state.demoMode);
+      scenesRef.current = parsed.state;
+      setScenesState(parsed.state);
+      setPast([]);
+      setFuture([]);
+      persistIfDirty(parsed.state);
       if (parsed.warning) {
         setStorageWarning(parsed.warning);
       } else {
@@ -507,9 +742,12 @@ export function useSkyGardenState() {
       }
       const nextObjects = parsed.state.scenes[parsed.state.selectedScene].objects;
       setSelectedInstanceId(nextObjects[0]?.instanceId ?? null);
+      setInspectedCollectionEntryId(
+        parsed.state.unlockedCollectionEntryIds[0] ?? DEMO_COLLECTION_ENTRIES[0].entryId,
+      );
       return { ok: true };
     },
-    [commitChange],
+    [persistIfDirty],
   );
 
   const dismissWarning = useCallback(() => {
@@ -532,6 +770,7 @@ export function useSkyGardenState() {
     setInspectedCollectionEntryId,
     selectHemisphere,
     toggleHemisphere,
+    switchDemoMode,
     placeItem,
     beginContinuousGesture,
     updateObjectLive,
@@ -541,6 +780,9 @@ export function useSkyGardenState() {
     removePlacedObject,
     setSceneAppearance,
     toggleRoomProp,
+    toggleOrUnlockRoomProp,
+    unlockCelestialDecor,
+    selectOrUnlockAppearance,
     recordPracticeObservation,
     clearCurrentScene,
     resetStarterScenes,

@@ -4,6 +4,13 @@ Sky Garden is an offline desktop-browser prototype for a cozy **side-on pixel-ar
 
 > **Prototype Status:** This build uses a local demo bundle of eight open-licensed astronomical cutouts (`CC BY 4.0`). It requires no account, makes no network requests during play, and submits no live classifications to Galaxy Zoo or Zooniverse.
 
+## Two Switchable Demo Profiles
+
+Toggle between profiles anytime in the top-left bar (`PROGRESSION` vs. `SANDBOX`); each saves independently in browser `localStorage` and also has a canonical JSON preset under `public/demos/`:
+
+- **Progression Mode (Default — [progression-fresh.json](./public/demos/progression-fresh.json)):** Starts in an empty observatory under a starless **Clear Dark Sky** (`0` Stardust, `0` cataloged galaxies in the Star Atlas). Classifying incoming subjects at the Blink Comparator CRT unlocks each galaxy into your Star Atlas & Telescope satchel and awards a flat `+3 ✦ Stardust` once per unique subject—answer-agnostic and with zero speed bonuses, while keeping all four optical inspection tools unlocked from second zero. Spend Stardust at the Workbench and Telescope satchel to unlock cozy furnishings, nebulae, sky gradients, dome ribs, and celestial accents.
+- **Sandbox Mode ([sandbox-all-unlocked.json](./public/demos/sandbox-all-unlocked.json)):** Starts with all eight galaxies, all room props, and all sky atmospheres unlocked and pre-arranged so reviewers can test sky decorating immediately.
+
 ## Quick Start
 
 All dependencies are pinned locally in `package.json` and `package-lock.json` (nothing is installed globally).

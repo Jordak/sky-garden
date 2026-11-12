@@ -6,6 +6,7 @@ import {
   CORRUPT_BACKUP_KEY,
   loadScenesFromStorage,
   parseImportedScenesJson,
+  PROGRESSION_STORAGE_KEY,
   saveScenesToStorage,
   serializeScenesToJson,
   STORAGE_KEY,
@@ -16,33 +17,116 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     window.localStorage.clear();
   });
 
-  it('renders the walkable side-on observatory and preserves North and South skies independently across reloads', () => {
-    const firstRender = render(<App />);
+  it('starts in Progression Mode by default with empty sky/atlas, ungated tools, Stardust unlocks, and no duplicate farm', () => {
+    render(<App />);
 
     expect(screen.getByTestId('observatory-room-canvas')).toBeInTheDocument();
+    expect(screen.getByTestId('mode-progression-btn')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('0 STARDUST');
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('0');
+    expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveTextContent('0');
+    // Progression starts under starless Clear Dark Sky
+    expect(screen.queryByTestId('backdrop-starfield')).not.toBeInTheDocument();
+
+    // Star Atlas starts empty until you classify incoming subjects
+    fireEvent.click(screen.getByRole('button', { name: /STAR ATLAS/i }));
+    expect(screen.getByTestId('atlas-empty-state')).toBeInTheDocument();
+
+    // Jump from empty Star Atlas to Blink Comparator CRT
+    fireEvent.click(screen.getByRole('button', { name: /GO TO BLINK COMPARATOR DESK/i }));
+    expect(screen.getByText(/PRACTICE TERMINAL · NOT LIVE RESEARCH/i)).toBeInTheDocument();
+
+    // Optical inspection switches remain unlocked from second zero
+    const invertBtn = screen.getByRole('button', { name: /INVERT/i });
+    expect(invertBtn).not.toBeDisabled();
+    fireEvent.click(invertBtn);
+    expect(invertBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // Classify first incoming subject -> unlocks NGC 1300 + grants +3 Stardust
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    expect(screen.getByText(/PRACTICE OBSERVATION LOGGED — UNLOCKED NGC 1300/i)).toBeInTheDocument();
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+
+    // Re-opening CRT on the already-unlocked NGC 1300 plate does NOT award duplicate Stardust
+    fireEvent.click(screen.getByRole('button', { name: /LEAVE DESK/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /◀ PREV/i }));
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+
+    // Star Atlas now contains only NGC 1300 (discovery-driven)
+    fireEvent.click(screen.getByRole('button', { name: /LEAVE DESK/i }));
+    fireEvent.click(screen.getByRole('button', { name: /STAR ATLAS/i }));
+    const atlasList = screen.getByRole('list', { name: /Demo Galaxy Collection/i });
+    expect(within(atlasList).getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByTestId('collection-card-src-ngc-1300')).toBeInTheDocument();
+
+    // Spend Stardust at Workbench: Cat (2) + Merope Mist (1) -> 0 left; Orrery (2) disabled
+    fireEvent.click(screen.getByRole('button', { name: /WORKBENCH/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Ginger Observatory Cat/i }));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('1 STARDUST');
+
+    fireEvent.click(screen.getByRole('button', { name: /Merope Reflection Mist/i }));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('0 STARDUST');
+    expect(screen.getByTestId('backdrop-starfield')).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: /Clockwork Brass Orrery/i })).toBeDisabled();
+  });
+
+  it('switches cleanly between Progression and Sandbox profiles without overwriting either save across reloads', () => {
+    const firstRender = render(<App />);
+
+    // Earn 1 galaxy & +3 Stardust in Progression Mode
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    fireEvent.click(screen.getByRole('button', { name: /HANG IN SKY AT TELESCOPE/i }));
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('1');
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+
+    // Switch to Sandbox -> full collection and starter compositions appear
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+    expect(screen.getByTestId('mode-sandbox-btn')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('SANDBOX');
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('4');
+    expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveTextContent('3');
+
+    // Switch back to Progression -> Progression progress is intact
+    fireEvent.click(screen.getByTestId('mode-progression-btn'));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('1');
+
+    // Reload -> stays on Progression with earned progress intact
+    firstRender.unmount();
+    render(<App />);
+    expect(screen.getByTestId('mode-progression-btn')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+    expect(loadScenesFromStorage(undefined, 'progression').state.unlockedCollectionEntryIds).toHaveLength(1);
+  });
+
+  it('preserves North and South skies independently in Sandbox Mode across reloads', () => {
+    const firstRender = render(<App />);
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+
     expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
 
-    // Step up to the Telescope Sky Curator station
     fireEvent.click(screen.getByRole('button', { name: /DECORATE SKY/i }));
     expect(screen.getByTestId('sky-satchel-dock')).toBeInTheDocument();
 
-    // Hang NGC 474 into the Northern sky dome
     fireEvent.click(screen.getByRole('button', { name: /Place NGC 474 in north sky/i }));
     expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('5');
     expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveTextContent('3');
 
-    // Rotate to Southern Window and clear its sky pane
     fireEvent.click(screen.getByRole('button', { name: /Southern Window/i }));
     fireEvent.click(screen.getByRole('button', { name: /Clear Pane/i }));
     expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveTextContent('0');
 
-    // Reload simulation
     firstRender.unmount();
     render(<App />);
 
+    expect(screen.getByTestId('mode-sandbox-btn')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -54,6 +138,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
   it('removes a placed galaxy at the Telescope without deleting it from the collection or altering source records', () => {
     const snapshotBefore = JSON.stringify(SOURCE_GALAXIES);
     render(<App />);
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
 
     fireEvent.click(screen.getByRole('button', { name: /DECORATE SKY/i }));
     fireEvent.click(
@@ -71,28 +156,9 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     expect(JSON.stringify(SOURCE_GALAXIES)).toBe(snapshotBefore);
   });
 
-  it('logs practice observations at the Blink Comparator CRT and hangs the subject in the sky', () => {
-    render(<App />);
-
-    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
-    expect(screen.getByText(/PRACTICE TERMINAL · NOT LIVE RESEARCH/i)).toBeInTheDocument();
-
-    // Ungated Invert hardware switch works immediately
-    const invertBtn = screen.getByRole('button', { name: /INVERT/i });
-    fireEvent.click(invertBtn);
-    expect(invertBtn).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
-    expect(screen.getByText(/PRACTICE OBSERVATION LOGGED/i)).toBeInTheDocument();
-
-    // Hang directly in sky from CRT station
-    fireEvent.click(screen.getByRole('button', { name: /HANG IN SKY AT TELESCOPE/i }));
-    expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('5');
-    expect(loadScenesFromStorage().state.practiceLog).toHaveLength(1);
-  });
-
   it('displays verified J2000 coordinates in the Star Atlas and withholds unavailable or unverified coordinates', () => {
     render(<App />);
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
 
     fireEvent.click(screen.getByRole('button', { name: /STAR ATLAS/i }));
 
@@ -115,6 +181,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
 
   it('supports keyboard nudging, scaling, and rotation using normalized sky coordinates', () => {
     render(<App />);
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
 
     fireEvent.click(screen.getByRole('button', { name: /DECORATE SKY/i }));
     const needleInstance = screen.getByTestId('placed-object-seed-north-needle');
@@ -123,7 +190,7 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     fireEvent.keyDown(needleInstance, { key: '+' });
     fireEvent.keyDown(needleInstance, { key: ']', shiftKey: true });
 
-    const saved = loadScenesFromStorage();
+    const saved = loadScenesFromStorage(undefined, 'sandbox');
     const updatedNeedle = saved.state.scenes.north.objects.find(
       (o) => o.instanceId === 'seed-north-needle',
     );
@@ -133,27 +200,9 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     expect(updatedNeedle!.rotationDeg).toBe(3);
   });
 
-  it('protects corrupt saved data from silent erasure and round-trips room props & sky compositions via JSON', () => {
-    window.localStorage.setItem(STORAGE_KEY, '{not-valid-json');
-    const loaded = loadScenesFromStorage();
-    expect(loaded.warning).toMatch(/backup copy was preserved/i);
-    expect(window.localStorage.getItem(CORRUPT_BACKUP_KEY)).toBe('{not-valid-json');
-
-    const brokenStorage = {
-      setItem() {
-        throw new Error('QuotaExceededError');
-      },
-    };
-    const saveRes = saveScenesToStorage(loaded.state, brokenStorage);
-    expect(saveRes.ok).toBe(false);
-
-    const exported = serializeScenesToJson(loaded.state);
-    const reimported = parseImportedScenesJson(exported);
-    expect('state' in reimported).toBe(true);
-  });
-
-  it('removes all backdrop stars when Clear Dark Sky is selected and persists across reloads', () => {
+  it('removes all backdrop stars when Clear Dark Sky is selected in Sandbox and persists across reloads', () => {
     const firstRender = render(<App />);
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
 
     expect(screen.getByTestId('backdrop-starfield')).toBeInTheDocument();
 
@@ -172,5 +221,32 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     fireEvent.click(screen.getByRole('button', { name: /WORKBENCH/i }));
     fireEvent.click(screen.getByRole('button', { name: /Cygnus Filament Veil/i }));
     expect(screen.getByTestId('backdrop-starfield')).toBeInTheDocument();
+  });
+
+  it('protects corrupt saved data from silent erasure and round-trips room props & sky compositions via JSON', () => {
+    window.localStorage.setItem(STORAGE_KEY, '{not-valid-json');
+    const loadedSandbox = loadScenesFromStorage(undefined, 'sandbox');
+    expect(loadedSandbox.warning).toMatch(/backup copy was preserved/i);
+    expect(window.localStorage.getItem(CORRUPT_BACKUP_KEY)).toBe('{not-valid-json');
+
+    window.localStorage.setItem(PROGRESSION_STORAGE_KEY, '{bad-progression');
+    const loadedProg = loadScenesFromStorage(undefined, 'progression');
+    expect(loadedProg.warning).toMatch(/backup copy was preserved/i);
+    expect(loadedProg.state.demoMode).toBe('progression');
+
+    const brokenStorage = {
+      setItem() {
+        throw new Error('QuotaExceededError');
+      },
+    };
+    const saveRes = saveScenesToStorage(loadedProg.state, brokenStorage);
+    expect(saveRes.ok).toBe(false);
+
+    const exported = serializeScenesToJson(loadedProg.state);
+    const reimported = parseImportedScenesJson(exported);
+    expect('state' in reimported).toBe(true);
+    if ('state' in reimported) {
+      expect(reimported.state.demoMode).toBe('progression');
+    }
   });
 });

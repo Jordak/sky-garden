@@ -7,16 +7,27 @@ import {
   getSourceGalaxyForCollectionEntry,
 } from '../data/demoCatalog';
 import type { ObjectTransformPatch } from '../state/useSkyGardenState';
-import type { PlacedObject, PlacedObjectKind, SceneComposition } from '../types/skyGarden';
+import type {
+  DemoMode,
+  PlacedObject,
+  PlacedObjectKind,
+  SceneComposition,
+} from '../types/skyGarden';
 import { CelestialDecorGlyph } from './CelestialGlyphs';
 
 interface SkyEditSatchelHudProps {
+  readonly demoMode: DemoMode;
+  readonly stardust: number;
   readonly scene: SceneComposition;
   readonly selectedObject: PlacedObject | null;
+  readonly unlockedEntryIds: ReadonlySet<string>;
+  readonly unlockedDecorIds: ReadonlySet<string>;
   readonly observedSourceIds: ReadonlySet<string>;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   readonly onPlaceItem: (kind: PlacedObjectKind, refId: string) => void;
+  readonly onUnlockDecor: (decorId: string) => void;
+  readonly onOpenCrtDesk: () => void;
   readonly onPatchDiscrete: (instanceId: string, patch: ObjectTransformPatch) => void;
   readonly onReorderLayer: (
     instanceId: string,
@@ -31,12 +42,18 @@ interface SkyEditSatchelHudProps {
 }
 
 export const SkyEditSatchelHud: React.FC<SkyEditSatchelHudProps> = ({
+  demoMode,
+  stardust,
   scene,
   selectedObject,
+  unlockedEntryIds,
+  unlockedDecorIds,
   observedSourceIds,
   canUndo,
   canRedo,
   onPlaceItem,
+  onUnlockDecor,
+  onOpenCrtDesk,
   onPatchDiscrete,
   onReorderLayer,
   onRemoveObject,
@@ -47,6 +64,11 @@ export const SkyEditSatchelHud: React.FC<SkyEditSatchelHudProps> = ({
   onCloseScope,
 }) => {
   const [trayFilter, setTrayFilter] = useState<'galaxies' | 'accents'>('galaxies');
+
+  const unlockedEntries = useMemo(
+    () => DEMO_COLLECTION_ENTRIES.filter((entry) => unlockedEntryIds.has(entry.entryId)),
+    [unlockedEntryIds],
+  );
 
   const placementCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -83,15 +105,18 @@ export const SkyEditSatchelHud: React.FC<SkyEditSatchelHudProps> = ({
             className={`pixel-tab-btn ${trayFilter === 'galaxies' ? 'is-active' : ''}`}
             onClick={() => setTrayFilter('galaxies')}
           >
-            GALAXIES ({DEMO_COLLECTION_ENTRIES.length})
+            GALAXIES ({unlockedEntries.length})
           </button>
           <button
             type="button"
             className={`pixel-tab-btn ${trayFilter === 'accents' ? 'is-active' : ''}`}
             onClick={() => setTrayFilter('accents')}
           >
-            STARS &amp; COMETS ({CELESTIAL_DECOR_ITEMS.length})
+            STARS &amp; COMETS ({unlockedDecorIds.size}/{CELESTIAL_DECOR_ITEMS.length})
           </button>
+          {demoMode === 'progression' && (
+            <span className="pixel-tag tag-amber">✦ {stardust} STARDUST</span>
+          )}
         </div>
 
         {/* Selected Sky Instance Quick Pixel Controls */}
@@ -213,58 +238,77 @@ export const SkyEditSatchelHud: React.FC<SkyEditSatchelHudProps> = ({
       </div>
 
       {trayFilter === 'galaxies' ? (
-        <ul className="satchel-slots-row" aria-label="Demo Galaxy Collection">
-          {DEMO_COLLECTION_ENTRIES.map((entry) => {
-            const galaxy = getSourceGalaxy(entry.sourceGalaxyId);
-            if (!galaxy) return null;
-            const count = placementCounts.get(entry.entryId) ?? 0;
-            const isObserved = observedSourceIds.has(galaxy.id);
+        unlockedEntries.length === 0 ? (
+          <div className="satchel-empty-box" data-testid="satchel-empty-box">
+            <span>
+              No galaxies cataloged yet — classify a survey subject at the CRT desk to unlock it
+              and earn +3 ✦ Stardust.
+            </span>
+            <button type="button" className="pixel-btn-primary" onClick={onOpenCrtDesk}>
+              CLASSIFY AT CRT →
+            </button>
+          </div>
+        ) : (
+          <ul className="satchel-slots-row" aria-label="Demo Galaxy Collection">
+            {unlockedEntries.map((entry) => {
+              const galaxy = getSourceGalaxy(entry.sourceGalaxyId);
+              if (!galaxy) return null;
+              const count = placementCounts.get(entry.entryId) ?? 0;
+              const isObserved = observedSourceIds.has(galaxy.id);
 
-            return (
-              <li
-                key={entry.entryId}
-                className="satchel-slot-card"
-                draggable
-                onDragStart={(e) => handleDragStart(e, 'galaxy', entry.entryId)}
-              >
-                <div
-                  className="satchel-slot-thumb"
-                  onClick={() => onOpenAtlasForEntry(entry.entryId)}
-                  title={`Inspect ${galaxy.catalogName} in Star Atlas`}
+              return (
+                <li
+                  key={entry.entryId}
+                  className="satchel-slot-card"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, 'galaxy', entry.entryId)}
                 >
-                  <img src={galaxy.originalImageUrl} alt={galaxy.catalogName} />
-                  {count > 0 && <span className="slot-count-badge">{count}×</span>}
-                  {isObserved && (
-                    <span className="slot-observed-star" title="Logged at Practice Desk">
-                      ★
-                    </span>
-                  )}
-                </div>
-                <div className="satchel-slot-meta">
-                  <span className="slot-title">{galaxy.catalogName}</span>
-                  <button
-                    type="button"
-                    className="slot-place-btn"
-                    onClick={() => onPlaceItem('galaxy', entry.entryId)}
-                    aria-label={`Place ${galaxy.catalogName} in ${scene.hemisphere} sky`}
+                  <div
+                    className="satchel-slot-thumb"
+                    onClick={() => onOpenAtlasForEntry(entry.entryId)}
+                    title={`Inspect ${galaxy.catalogName} in Star Atlas`}
                   >
-                    + HANG
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    <img src={galaxy.originalImageUrl} alt={galaxy.catalogName} />
+                    {count > 0 && <span className="slot-count-badge">{count}×</span>}
+                    {isObserved && (
+                      <span className="slot-observed-star" title="Logged at Practice Desk">
+                        ★
+                      </span>
+                    )}
+                  </div>
+                  <div className="satchel-slot-meta">
+                    <span className="slot-title">{galaxy.catalogName}</span>
+                    <button
+                      type="button"
+                      className="slot-place-btn"
+                      onClick={() => onPlaceItem('galaxy', entry.entryId)}
+                      aria-label={`Place ${galaxy.catalogName} in ${scene.hemisphere} sky`}
+                    >
+                      + HANG
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )
       ) : (
         <ul className="satchel-slots-row" aria-label="Celestial Scenery Accents">
           {CELESTIAL_DECOR_ITEMS.map((decor) => {
             const count = placementCounts.get(decor.decorId) ?? 0;
+            const isUnlocked = demoMode === 'sandbox' || unlockedDecorIds.has(decor.decorId);
+            const canAfford = stardust >= decor.costStardust;
+
             return (
               <li
                 key={decor.decorId}
-                className="satchel-slot-card"
-                draggable
-                onDragStart={(e) => handleDragStart(e, 'celestial_decor', decor.decorId)}
+                className={`satchel-slot-card ${!isUnlocked ? 'is-locked' : ''}`}
+                draggable={isUnlocked}
+                onDragStart={
+                  isUnlocked
+                    ? (e) => handleDragStart(e, 'celestial_decor', decor.decorId)
+                    : undefined
+                }
               >
                 <div className="satchel-slot-thumb decor-slot-bg">
                   <CelestialDecorGlyph glyphKind={decor.glyphKind} />
@@ -272,13 +316,29 @@ export const SkyEditSatchelHud: React.FC<SkyEditSatchelHudProps> = ({
                 </div>
                 <div className="satchel-slot-meta">
                   <span className="slot-title">{decor.title}</span>
-                  <button
-                    type="button"
-                    className="slot-place-btn"
-                    onClick={() => onPlaceItem('celestial_decor', decor.decorId)}
-                  >
-                    + HANG
-                  </button>
+                  {isUnlocked ? (
+                    <button
+                      type="button"
+                      className="slot-place-btn"
+                      onClick={() => onPlaceItem('celestial_decor', decor.decorId)}
+                    >
+                      + HANG
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="slot-place-btn btn-unlock"
+                      disabled={!canAfford}
+                      onClick={() => onUnlockDecor(decor.decorId)}
+                      title={
+                        canAfford
+                          ? `Spend ${decor.costStardust} Stardust to unlock ${decor.title}`
+                          : `Requires ${decor.costStardust} Stardust`
+                      }
+                    >
+                      UNLOCK · {decor.costStardust} ✦
+                    </button>
+                  )}
                 </div>
               </li>
             );

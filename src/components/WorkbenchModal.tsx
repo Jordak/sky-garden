@@ -1,17 +1,26 @@
 import React, { useRef } from 'react';
 import {
+  CELESTIAL_DECOR_ITEMS,
   NEBULA_LAYERS,
   ROOM_PROPS,
   SKY_BACKGROUNDS,
   WINDOW_FRAMES,
 } from '../data/demoCatalog';
-import type { RoomPropId, SceneComposition } from '../types/skyGarden';
+import type { DemoMode, RoomPropId, SceneComposition } from '../types/skyGarden';
 
 interface WorkbenchModalProps {
+  readonly demoMode: DemoMode;
+  readonly stardust: number;
   readonly scene: SceneComposition;
   readonly activeRoomProps: readonly RoomPropId[];
-  readonly onToggleRoomProp: (propId: RoomPropId) => void;
-  readonly onSetSceneAppearance: (patch: {
+  readonly unlockedRoomProps: ReadonlySet<RoomPropId>;
+  readonly unlockedDecorIds: ReadonlySet<string>;
+  readonly unlockedBackgroundIds: ReadonlySet<string>;
+  readonly unlockedNebulaIds: ReadonlySet<string>;
+  readonly unlockedFrameIds: ReadonlySet<string>;
+  readonly onToggleOrUnlockRoomProp: (propId: RoomPropId) => void;
+  readonly onUnlockDecor: (decorId: string) => void;
+  readonly onSelectOrUnlockAppearance: (patch: {
     backgroundId?: string;
     nebulaLayerId?: string;
     windowFrameId?: string;
@@ -24,10 +33,18 @@ interface WorkbenchModalProps {
 }
 
 export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
+  demoMode,
+  stardust,
   scene,
   activeRoomProps,
-  onToggleRoomProp,
-  onSetSceneAppearance,
+  unlockedRoomProps,
+  unlockedDecorIds,
+  unlockedBackgroundIds,
+  unlockedNebulaIds,
+  unlockedFrameIds,
+  onToggleOrUnlockRoomProp,
+  onUnlockDecor,
+  onSelectOrUnlockAppearance,
   onExportJson,
   onImportJsonFile,
   onResetDemo,
@@ -54,31 +71,73 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               ROOM FURNISHINGS &amp; {scene.hemisphere.toUpperCase()} SKY ATMOSPHERE
             </span>
           </div>
-          <button type="button" className="pixel-mini-btn" onClick={onClose}>
-            [ESC] CLOSE BENCH
-          </button>
+          <div className="crt-header-right">
+            <span className="pixel-tag tag-amber">
+              {demoMode === 'progression' ? `✦ ${stardust} STARDUST` : 'SANDBOX · ALL UNLOCKED'}
+            </span>
+            <button type="button" className="pixel-mini-btn" onClick={onClose}>
+              [ESC] CLOSE BENCH
+            </button>
+          </div>
         </div>
 
         <div className="workbench-columns">
-          {/* Column 1: Cozy Observatory Room Props */}
+          {/* Column 1: Cozy Observatory Room Props + Celestial Scenery + Save Ledger */}
           <div className="workbench-col">
             <h3 className="workbench-section-title">OBSERVATORY FURNISHINGS</h3>
             <div className="workbench-prop-list">
               {ROOM_PROPS.map((prop) => {
-                const isActive = propSet.has(prop.id);
+                const isUnlocked = demoMode === 'sandbox' || unlockedRoomProps.has(prop.id);
+                const isActive = isUnlocked && propSet.has(prop.id);
+                const canAfford = stardust >= prop.costStardust;
+
                 return (
                   <button
                     key={prop.id}
                     type="button"
-                    aria-pressed={isActive}
-                    className={`workbench-prop-btn ${isActive ? 'is-active' : ''}`}
-                    onClick={() => onToggleRoomProp(prop.id)}
+                    aria-pressed={isUnlocked ? isActive : undefined}
+                    disabled={!isUnlocked && !canAfford}
+                    className={`workbench-prop-btn ${isActive ? 'is-active' : ''} ${
+                      !isUnlocked ? 'is-locked' : ''
+                    }`}
+                    onClick={() => onToggleOrUnlockRoomProp(prop.id)}
                   >
                     <div>
                       <strong>{prop.name}</strong>
                       <small>{prop.description}</small>
                     </div>
-                    <span className="prop-state-chip">{isActive ? 'PLACED' : 'STORED'}</span>
+                    <span className="prop-state-chip">
+                      {isUnlocked
+                        ? isActive
+                          ? 'PLACED'
+                          : 'STORED'
+                        : `UNLOCK ${prop.costStardust} ✦`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <h3 className="workbench-section-title" style={{ marginTop: '4px' }}>
+              CELESTIAL SCENERY ACCENTS
+            </h3>
+            <div className="workbench-compact-grid">
+              {CELESTIAL_DECOR_ITEMS.map((decor) => {
+                const isUnlocked = demoMode === 'sandbox' || unlockedDecorIds.has(decor.decorId);
+                const canAfford = stardust >= decor.costStardust;
+
+                return (
+                  <button
+                    key={decor.decorId}
+                    type="button"
+                    disabled={isUnlocked || !canAfford}
+                    title={decor.subtitle}
+                    className={`crt-choice-btn ${isUnlocked ? 'is-picked' : 'is-locked'}`}
+                    onClick={() => onUnlockDecor(decor.decorId)}
+                  >
+                    {isUnlocked
+                      ? `${decor.title} · UNLOCKED ✓`
+                      : `${decor.title} · UNLOCK ${decor.costStardust} ✦`}
                   </button>
                 );
               })}
@@ -95,7 +154,7 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
                 className="pixel-input"
                 maxLength={70}
                 value={scene.exhibitionTitle}
-                onChange={(e) => onSetSceneAppearance({ exhibitionTitle: e.target.value })}
+                onChange={(e) => onSelectOrUnlockAppearance({ exhibitionTitle: e.target.value })}
               />
               <div className="workbench-ledger-actions">
                 <button type="button" className="pixel-mini-btn" onClick={onExportJson}>
@@ -133,55 +192,86 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               {scene.hemisphere.toUpperCase()} SKY BACKDROP
             </h3>
             <div className="workbench-preset-list">
-              {SKY_BACKGROUNDS.map((bg) => (
-                <button
-                  key={bg.id}
-                  type="button"
-                  className={`workbench-prop-btn ${scene.backgroundId === bg.id ? 'is-active' : ''}`}
-                  onClick={() => onSetSceneAppearance({ backgroundId: bg.id })}
-                >
-                  <div className="preset-inline-row">
-                    <span
-                      className="preset-swatch-pixel"
-                      style={{ backgroundImage: bg.gradientCss }}
-                    />
-                    <div>
-                      <strong>{bg.name}</strong>
-                      <small>{bg.description}</small>
+              {SKY_BACKGROUNDS.map((bg) => {
+                const isUnlocked = demoMode === 'sandbox' || unlockedBackgroundIds.has(bg.id);
+                const isSelected = isUnlocked && scene.backgroundId === bg.id;
+                const canAfford = stardust >= bg.costStardust;
+
+                return (
+                  <button
+                    key={bg.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    disabled={!isUnlocked && !canAfford}
+                    className={`workbench-prop-btn ${isSelected ? 'is-active' : ''} ${
+                      !isUnlocked ? 'is-locked' : ''
+                    }`}
+                    onClick={() => onSelectOrUnlockAppearance({ backgroundId: bg.id })}
+                  >
+                    <div className="preset-inline-row">
+                      <span
+                        className="preset-swatch-pixel"
+                        style={{ backgroundImage: bg.gradientCss }}
+                      />
+                      <div>
+                        <strong>{bg.name}</strong>
+                        <small>{bg.description}</small>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                    {!isUnlocked && (
+                      <span className="prop-state-chip">UNLOCK {bg.costStardust} ✦</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             <h3 className="workbench-section-title">AMBIENT SKY &amp; DOME RIBS</h3>
             <div className="workbench-compact-grid">
-              {NEBULA_LAYERS.map((neb) => (
-                <button
-                  key={neb.id}
-                  type="button"
-                  aria-pressed={scene.nebulaLayerId === neb.id}
-                  title={neb.description}
-                  className={`crt-choice-btn ${scene.nebulaLayerId === neb.id ? 'is-picked' : ''}`}
-                  onClick={() => onSetSceneAppearance({ nebulaLayerId: neb.id })}
-                >
-                  {neb.name}
-                </button>
-              ))}
+              {NEBULA_LAYERS.map((neb) => {
+                const isUnlocked = demoMode === 'sandbox' || unlockedNebulaIds.has(neb.id);
+                const isSelected = isUnlocked && scene.nebulaLayerId === neb.id;
+                const canAfford = stardust >= neb.costStardust;
+
+                return (
+                  <button
+                    key={neb.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    disabled={!isUnlocked && !canAfford}
+                    title={neb.description}
+                    className={`crt-choice-btn ${isSelected ? 'is-picked' : ''} ${
+                      !isUnlocked ? 'is-locked' : ''
+                    }`}
+                    onClick={() => onSelectOrUnlockAppearance({ nebulaLayerId: neb.id })}
+                  >
+                    {isUnlocked ? neb.name : `${neb.name} · ${neb.costStardust} ✦`}
+                  </button>
+                );
+              })}
             </div>
             <div className="workbench-compact-grid" style={{ marginTop: '6px' }}>
-              {WINDOW_FRAMES.map((frame) => (
-                <button
-                  key={frame.id}
-                  type="button"
-                  aria-pressed={scene.windowFrameId === frame.id}
-                  title={frame.description}
-                  className={`crt-choice-btn ${scene.windowFrameId === frame.id ? 'is-picked' : ''}`}
-                  onClick={() => onSetSceneAppearance({ windowFrameId: frame.id })}
-                >
-                  {frame.name}
-                </button>
-              ))}
+              {WINDOW_FRAMES.map((frame) => {
+                const isUnlocked = demoMode === 'sandbox' || unlockedFrameIds.has(frame.id);
+                const isSelected = isUnlocked && scene.windowFrameId === frame.id;
+                const canAfford = stardust >= frame.costStardust;
+
+                return (
+                  <button
+                    key={frame.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    disabled={!isUnlocked && !canAfford}
+                    title={frame.description}
+                    className={`crt-choice-btn ${isSelected ? 'is-picked' : ''} ${
+                      !isUnlocked ? 'is-locked' : ''
+                    }`}
+                    onClick={() => onSelectOrUnlockAppearance({ windowFrameId: frame.id })}
+                  >
+                    {isUnlocked ? frame.name : `${frame.name} · ${frame.costStardust} ✦`}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

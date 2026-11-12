@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "demoMode": "progression",
+  "stardust": 0,
+  "unlockedCollectionEntryIds": [],
+  "unlockedDecorIds": [],
+  "unlockedRoomProps": [],
+  "unlockedBackgroundIds": ["bg-atacama-zenith"],
+  "unlockedNebulaIds": ["nebula-none"],
+  "unlockedFrameIds": ["frame-arched-brass"],
+  "selectedScene": "north",
+  "updatedAtIso": "2026-11-12T00:00:00.000Z",
+  "activeRoomProps": [],
+  "practiceLog": [],
+  "scenes": {
+    "north": {
+      "hemisphere": "north",
+      "exhibitionTitle": "First Light Study",
+      "backgroundId": "bg-atacama-zenith",
+      "nebulaLayerId": "nebula-none",
+      "windowFrameId": "frame-arched-brass",
+      "objects": []
+    },
+    "south": {
+      "hemisphere": "south",
+      "exhibitionTitle": "Southern First Light",
+      "backgroundId": "bg-atacama-zenith",
+      "nebulaLayerId": "nebula-none",
+      "windowFrameId": "frame-arched-brass",
+      "objects": []
+    }
+  }
+}

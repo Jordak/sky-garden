@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { PAL } from '../pixel/palette';
 import { drawPixelText, measurePixelText } from '../pixel/pixelFont';
 import { getSideSpriteSheet } from '../pixel/pixelSprites';
-import type { RoomPropId, SceneHemisphere, StationId } from '../types/skyGarden';
+import type { DemoMode, RoomPropId, SceneHemisphere, StationId } from '../types/skyGarden';
 
 export const NATIVE_W = 320;
 export const NATIVE_H = 180;
@@ -80,6 +80,9 @@ interface DustPuff {
 }
 
 interface ObservatoryCutawayCanvasProps {
+  readonly demoMode: DemoMode;
+  readonly stardust: number;
+  readonly unlockedGalaxyCount: number;
   readonly hemisphere: SceneHemisphere;
   readonly windowFrameId: string;
   readonly activeRoomProps: readonly RoomPropId[];
@@ -91,6 +94,9 @@ interface ObservatoryCutawayCanvasProps {
 }
 
 export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> = ({
+  demoMode,
+  stardust,
+  unlockedGalaxyCount,
   hemisphere,
   windowFrameId,
   activeRoomProps,
@@ -103,6 +109,9 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const propsRef = useRef({
+    demoMode,
+    stardust,
+    unlockedGalaxyCount,
     hemisphere,
     windowFrameId,
     activeRoomProps,
@@ -114,6 +123,9 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
   });
   useEffect(() => {
     propsRef.current = {
+      demoMode,
+      stardust,
+      unlockedGalaxyCount,
       hemisphere,
       windowFrameId,
       activeRoomProps,
@@ -126,11 +138,14 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
   }, [
     activeRoomProps,
     activeStation,
+    demoMode,
     exhibitionMode,
     hemisphere,
     onTriggerStation,
     practiceCount,
     skyEditMode,
+    stardust,
+    unlockedGalaxyCount,
     windowFrameId,
   ]);
 
@@ -267,10 +282,13 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
       lastTime = now;
 
       const {
+        demoMode: mode,
+        stardust: dustCount,
+        unlockedGalaxyCount: galaxyCount,
         hemisphere: hemi,
         windowFrameId: frameId,
         activeRoomProps: roomProps,
-        practiceCount: pCount,
+        practiceCount: _pCount,
         activeStation: openStation,
         skyEditMode: isSkyEdit,
         exhibitionMode: isExhib,
@@ -697,6 +715,29 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
           drawPixelText(ctx, label, bx + 4, by + 2, PAL.candleCream, PAL.void);
         }
 
+        // Subtle beckoning cyan pixel tag above CRT desk when first entering Progression Mode
+        if (
+          mode === 'progression' &&
+          galaxyCount === 0 &&
+          (!nearest || nearest.id !== 'crt-desk')
+        ) {
+          const hintLabel = 'START HERE';
+          const hw = measurePixelText(hintLabel);
+          const bob = Math.round(Math.sin(now * 0.0045) * 1.3);
+          const hx = Math.round(66 - (hw + 8) / 2);
+          const hy = 104 + bob;
+          ctx.fillStyle = PAL.void;
+          ctx.fillRect(hx - 1, hy - 1, hw + 10, 11);
+          ctx.fillStyle = PAL.crtDark;
+          ctx.fillRect(hx, hy, hw + 8, 9);
+          ctx.fillStyle = PAL.crtGlow;
+          ctx.fillRect(hx, hy, hw + 8, 1);
+          ctx.fillRect(hx, hy + 8, hw + 8, 1);
+          ctx.fillRect(hx, hy, 1, 9);
+          ctx.fillRect(hx + hw + 7, hy, 1, 9);
+          drawPixelText(ctx, hintLabel, hx + 4, hy + 2, PAL.crtBright, PAL.void);
+        }
+
         // Crisp pixel HUD strip tucked into the lower stone foundation
         drawPixelText(
           ctx,
@@ -706,7 +747,10 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
           PAL.starIce,
           PAL.void,
         );
-        const rightHud = `PRACTICE:${pCount}  SKY:${hemi.toUpperCase()}`;
+        const rightHud =
+          mode === 'progression'
+            ? `STARDUST:${dustCount}  SKY:${hemi.toUpperCase()}`
+            : `SANDBOX  SKY:${hemi.toUpperCase()}`;
         const rhw = measurePixelText(rightHud);
         drawPixelText(ctx, rightHud, 300 - rhw, 164, PAL.amberGlow, PAL.void);
       }

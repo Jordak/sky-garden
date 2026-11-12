@@ -1,15 +1,20 @@
 import {
   CELESTIAL_DECOR_ITEMS,
-  createInitialScenesState,
+  createInitialProgressionState,
+  createInitialSandboxState,
   DEFAULT_ROOM_PROPS,
   DEMO_COLLECTION_ENTRIES,
   NEBULA_LAYERS,
   ROOM_PROPS,
   SKY_BACKGROUNDS,
   SOURCE_GALAXIES,
+  STARTER_BACKGROUND_ID,
+  STARTER_FRAME_ID,
+  STARTER_NEBULA_ID,
   WINDOW_FRAMES,
 } from '../data/demoCatalog';
 import type {
+  DemoMode,
   PlacedObject,
   PlacedObjectKind,
   PracticeObservation,
@@ -19,6 +24,9 @@ import type {
   SceneHemisphere,
 } from '../types/skyGarden';
 
+export const ACTIVE_DEMO_MODE_KEY = 'sky-garden.active-mode.v1';
+export const PROGRESSION_STORAGE_KEY = 'sky-garden.progression.v1';
+export const PROGRESSION_CORRUPT_BACKUP_KEY = 'sky-garden.progression.corrupt-backup';
 export const STORAGE_KEY = 'sky-garden.scenes.v1';
 export const CORRUPT_BACKUP_KEY = 'sky-garden.scenes.corrupt-backup';
 
@@ -216,8 +224,71 @@ function sanitizePracticeLog(raw: unknown): PracticeObservation[] {
   return list;
 }
 
+function sanitizeIdList(
+  raw: unknown,
+  validSet: ReadonlySet<string>,
+  requiredIds: readonly string[] = [],
+): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const id of requiredIds) {
+    if (validSet.has(id) && !seen.has(id)) {
+      seen.add(id);
+      result.push(id);
+    }
+  }
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === 'string' && validSet.has(item) && !seen.has(item)) {
+        seen.add(item);
+        result.push(item);
+      }
+    }
+  }
+  return result;
+}
+
+function getStorageKeysForMode(mode: DemoMode): { storageKey: string; backupKey: string } {
+  if (mode === 'progression') {
+    return {
+      storageKey: PROGRESSION_STORAGE_KEY,
+      backupKey: PROGRESSION_CORRUPT_BACKUP_KEY,
+    };
+  }
+  return {
+    storageKey: STORAGE_KEY,
+    backupKey: CORRUPT_BACKUP_KEY,
+  };
+}
+
+export function loadActiveDemoMode(storage?: Pick<Storage, 'getItem'>): DemoMode {
+  const targetStorage =
+    storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+  if (!targetStorage) return 'progression';
+  try {
+    return targetStorage.getItem(ACTIVE_DEMO_MODE_KEY) === 'sandbox' ? 'sandbox' : 'progression';
+  } catch {
+    return 'progression';
+  }
+}
+
+export function saveActiveDemoMode(
+  mode: DemoMode,
+  storage?: Pick<Storage, 'setItem'>,
+): void {
+  const targetStorage =
+    storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+  if (!targetStorage) return;
+  try {
+    targetStorage.setItem(ACTIVE_DEMO_MODE_KEY, mode);
+  } catch {
+    // Ignore storage mode persistence failures
+  }
+}
+
 export function validateAndSanitizeScenesState(
   parsed: unknown,
+  fallbackMode: DemoMode = 'sandbox',
 ):
   | { readonly state: SavedScenesState; readonly warnings: readonly string[] }
   | { readonly error: string } {
@@ -233,7 +304,15 @@ export function validateAndSanitizeScenesState(
     return { error: 'Saved layout is missing its "scenes" container.' };
   }
 
-  const fallback = createInitialScenesState();
+  const demoMode: DemoMode =
+    parsed.demoMode === 'progression'
+      ? 'progression'
+      : parsed.demoMode === 'sandbox'
+        ? 'sandbox'
+        : fallbackMode;
+
+  const fallback =
+    demoMode === 'progression' ? createInitialProgressionState() : createInitialSandboxState();
   const warnings: string[] = [];
 
   const selectedScene: SceneHemisphere =
@@ -241,16 +320,86 @@ export function validateAndSanitizeScenesState(
       ? parsed.selectedScene
       : 'north';
 
-  const north = sanitizeScene(parsed.scenes.north, 'north', fallback.scenes.north, warnings);
-  const south = sanitizeScene(parsed.scenes.south, 'south', fallback.scenes.south, warnings);
+  const stardust =
+    demoMode === 'progression' &&
+    typeof parsed.stardust === 'number' &&
+    Number.isFinite(parsed.stardust)
+      ? Math.max(0, Math.min(9999, Math.floor(parsed.stardust)))
+      : 0;
+
+  const unlockedCollectionEntryIds =
+    demoMode === 'sandbox'
+      ? [...fallback.unlockedCollectionEntryIds]
+      : sanitizeIdList(parsed.unlockedCollectionEntryIds, VALID_GALAXY_ENTRIES);
+  const unlockedDecorIds =
+    demoMode === 'sandbox'
+      ? [...fallback.unlockedDecorIds]
+      : sanitizeIdList(parsed.unlockedDecorIds, VALID_DECOR_IDS);
+  const unlockedRoomProps =
+    demoMode === 'sandbox'
+      ? ([...fallback.unlockedRoomProps] as RoomPropId[])
+      : (sanitizeIdList(parsed.unlockedRoomProps, VALID_ROOM_PROPS) as RoomPropId[]);
+  const unlockedBackgroundIds =
+    demoMode === 'sandbox'
+      ? [...fallback.unlockedBackgroundIds]
+      : sanitizeIdList(parsed.unlockedBackgroundIds, VALID_BACKGROUNDS, [STARTER_BACKGROUND_ID]);
+  const unlockedNebulaIds =
+    demoMode === 'sandbox'
+      ? [...fallback.unlockedNebulaIds]
+      : sanitizeIdList(parsed.unlockedNebulaIds, VALID_NEBULAE, [STARTER_NEBULA_ID]);
+  const unlockedFrameIds =
+    demoMode === 'sandbox'
+      ? [...fallback.unlockedFrameIds]
+      : sanitizeIdList(parsed.unlockedFrameIds, VALID_FRAMES, [STARTER_FRAME_ID]);
+
+  const unlockedRoomPropSet = new Set<RoomPropId>(unlockedRoomProps);
+  const rawRoomProps = sanitizeRoomProps(parsed.activeRoomProps);
+  const activeRoomProps =
+    demoMode === 'sandbox'
+      ? rawRoomProps
+      : rawRoomProps.filter((propId) => unlockedRoomPropSet.has(propId));
+
+  let north = sanitizeScene(parsed.scenes.north, 'north', fallback.scenes.north, warnings);
+  let south = sanitizeScene(parsed.scenes.south, 'south', fallback.scenes.south, warnings);
+
+  if (demoMode === 'progression') {
+    const unlockedEntrySet = new Set(unlockedCollectionEntryIds);
+    const unlockedDecorSet = new Set(unlockedDecorIds);
+    const unlockedBgSet = new Set(unlockedBackgroundIds);
+    const unlockedNebSet = new Set(unlockedNebulaIds);
+    const unlockedFrameSet = new Set(unlockedFrameIds);
+
+    const clampSceneToUnlocked = (sc: SceneComposition): SceneComposition => ({
+      ...sc,
+      backgroundId: unlockedBgSet.has(sc.backgroundId) ? sc.backgroundId : STARTER_BACKGROUND_ID,
+      nebulaLayerId: unlockedNebSet.has(sc.nebulaLayerId) ? sc.nebulaLayerId : STARTER_NEBULA_ID,
+      windowFrameId: unlockedFrameSet.has(sc.windowFrameId) ? sc.windowFrameId : STARTER_FRAME_ID,
+      objects: normalizeLayerOrder(
+        sc.objects.filter((obj) =>
+          obj.kind === 'galaxy' ? unlockedEntrySet.has(obj.refId) : unlockedDecorSet.has(obj.refId),
+        ),
+      ),
+    });
+
+    north = clampSceneToUnlocked(north);
+    south = clampSceneToUnlocked(south);
+  }
 
   return {
     state: {
       schemaVersion: 1,
+      demoMode,
+      stardust,
+      unlockedCollectionEntryIds,
+      unlockedDecorIds,
+      unlockedRoomProps,
+      unlockedBackgroundIds,
+      unlockedNebulaIds,
+      unlockedFrameIds,
       selectedScene,
       updatedAtIso:
         typeof parsed.updatedAtIso === 'string' ? parsed.updatedAtIso : new Date().toISOString(),
-      activeRoomProps: sanitizeRoomProps(parsed.activeRoomProps),
+      activeRoomProps,
       practiceLog: sanitizePracticeLog(parsed.practiceLog),
       scenes: { north, south },
     },
@@ -260,26 +409,31 @@ export function validateAndSanitizeScenesState(
 
 export function loadScenesFromStorage(
   storage?: Pick<Storage, 'getItem' | 'setItem'>,
+  mode: DemoMode = 'sandbox',
 ): LoadScenesResult {
   const targetStorage =
     storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+  const fallbackState =
+    mode === 'progression' ? createInitialProgressionState() : createInitialSandboxState();
 
   if (!targetStorage) {
     return {
-      state: createInitialScenesState(),
+      state: fallbackState,
       storageAvailable: false,
       warning: 'Browser localStorage is unavailable; changes will live in memory until exported.',
       hadSavedData: false,
     };
   }
 
+  const { storageKey, backupKey } = getStorageKeysForMode(mode);
+
   let raw: string | null = null;
   try {
-    raw = targetStorage.getItem(STORAGE_KEY);
+    raw = targetStorage.getItem(storageKey);
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'access denied';
     return {
-      state: createInitialScenesState(),
+      state: fallbackState,
       storageAvailable: false,
       warning: `Could not read localStorage (${detail}). Working in memory—use Export JSON to save your sky.`,
       hadSavedData: false,
@@ -288,7 +442,7 @@ export function loadScenesFromStorage(
 
   if (raw === null) {
     return {
-      state: createInitialScenesState(),
+      state: fallbackState,
       storageAvailable: true,
       warning: null,
       hadSavedData: false,
@@ -300,12 +454,12 @@ export function loadScenesFromStorage(
     parsed = JSON.parse(raw);
   } catch {
     try {
-      targetStorage.setItem(CORRUPT_BACKUP_KEY, raw);
+      targetStorage.setItem(backupKey, raw);
     } catch {
       // Ignore secondary backup failure.
     }
     return {
-      state: createInitialScenesState(),
+      state: fallbackState,
       storageAvailable: true,
       warning:
         'Previously saved local data could not be parsed. A backup copy was preserved and starter scenes were loaded in memory.',
@@ -313,15 +467,15 @@ export function loadScenesFromStorage(
     };
   }
 
-  const result = validateAndSanitizeScenesState(parsed);
+  const result = validateAndSanitizeScenesState(parsed, mode);
   if ('error' in result) {
     try {
-      targetStorage.setItem(CORRUPT_BACKUP_KEY, raw);
+      targetStorage.setItem(backupKey, raw);
     } catch {
       // Ignore backup write error.
     }
     return {
-      state: createInitialScenesState(),
+      state: fallbackState,
       storageAvailable: true,
       warning: `${result.error} Previous data was backed up rather than silently erased.`,
       hadSavedData: false,
@@ -350,8 +504,10 @@ export function saveScenesToStorage(
     };
   }
 
+  const { storageKey } = getStorageKeysForMode(state.demoMode);
+
   try {
-    targetStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    targetStorage.setItem(storageKey, JSON.stringify(state));
     return { ok: true, warning: null };
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'write failed';
