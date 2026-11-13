@@ -16,6 +16,7 @@ import {
   clampCoordX,
   clampCoordY,
   clampScale,
+  clearAllSavedData,
   loadActiveDemoMode,
   loadScenesFromStorage,
   normalizeLayerOrder,
@@ -695,6 +696,22 @@ export function useSkyGardenState() {
     );
   }, [persistIfDirty]);
 
+  const wipeAllLocalData = useCallback(() => {
+    const cleared = clearAllSavedData();
+    const fresh: SavedScenesState = {
+      ...createInitialProgressionState(),
+      updatedAtIso: new Date().toISOString(),
+    };
+    scenesRef.current = fresh;
+    setScenesState(fresh);
+    setPast([]);
+    setFuture([]);
+    setSelectedInstanceId(null);
+    setInspectedCollectionEntryId(DEMO_COLLECTION_ENTRIES[0].entryId);
+    setStorageHealthy(cleared);
+    setStorageWarning(null);
+  }, []);
+
   const undo = useCallback(() => {
     if (past.length === 0) return;
     const previous = past[past.length - 1];
@@ -786,6 +803,7 @@ export function useSkyGardenState() {
     recordPracticeObservation,
     clearCurrentScene,
     resetStarterScenes,
+    wipeAllLocalData,
     undo,
     redo,
     importScenesJson,

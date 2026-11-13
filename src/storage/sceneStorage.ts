@@ -547,3 +547,19 @@ export function parseImportedScenesJson(
     warning: validated.warnings.length > 0 ? validated.warnings.join(' ') : null,
   };
 }
+
+export function clearAllSavedData(storage?: Pick<Storage, 'removeItem'>): boolean {
+  const targetStorage =
+    storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+  if (!targetStorage) return false;
+  try {
+    targetStorage.removeItem(ACTIVE_DEMO_MODE_KEY);
+    targetStorage.removeItem(PROGRESSION_STORAGE_KEY);
+    targetStorage.removeItem(PROGRESSION_CORRUPT_BACKUP_KEY);
+    targetStorage.removeItem(STORAGE_KEY);
+    targetStorage.removeItem(CORRUPT_BACKUP_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}

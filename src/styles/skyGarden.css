@@ -1245,6 +1245,128 @@ input {
   gap: 8px;
 }
 
+.pixel-ext-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pixel-tag.tag-cyan {
+  background: #0d2a33;
+  border: 1px solid var(--crt-glow);
+  color: var(--crt-bright);
+  padding: 2px 6px;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.crt-workflow-disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 9px;
+  background: #10222b;
+  border-left: 3px solid var(--amber-glow);
+  font-size: 0.7rem;
+  color: #cde8eb;
+  line-height: 1.35;
+}
+
+.crt-workflow-disclosure-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.atlas-community-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ethics-modal-frame {
+  width: min(860px, 95%);
+  border-color: var(--crt-glow);
+  background: #08131a;
+}
+
+.ethics-pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ethics-pillar-card {
+  padding: 9px 11px;
+  background: #0d1d26;
+  border: 2px solid #264857;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ethics-pillar-card h3 {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--crt-bright);
+  letter-spacing: 0.03em;
+}
+
+.ethics-pillar-card p {
+  margin: 0;
+  font-size: 0.69rem;
+  line-height: 1.4;
+  color: #cde8eb;
+}
+
+.ethics-principle-quote {
+  color: var(--candle-cream) !important;
+  font-weight: 700;
+}
+
+.ethics-data-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 11px;
+  background: #101d2e;
+  border: 2px solid var(--stone-mid);
+}
+
+.ethics-data-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.ethics-data-copy strong {
+  font-size: 0.72rem;
+  color: var(--candle-cream);
+}
+
+.ethics-data-copy span {
+  font-size: 0.67rem;
+  color: #b7d7de;
+}
+
+.ethics-data-actions,
+.ethics-wipe-confirm,
+.ethics-community-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 860px) {
   .satchel-slots-row {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1253,7 +1375,8 @@ input {
   .atlas-pages-grid,
   .workbench-columns,
   .atlas-plate-row,
-  .atlas-coords-split {
+  .atlas-coords-split,
+  .ethics-pillars-grid {
     grid-template-columns: 1fr;
   }
 }

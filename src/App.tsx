@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClassificationCrtModal } from './components/ClassificationCrtModal';
+import { EthicsCharterModal } from './components/EthicsCharterModal';
 import { ObservatoryCutawayCanvas } from './components/ObservatoryCutawayCanvas';
 import { ObservatoryStage } from './components/ObservatoryStage';
 import { ResetConfirmModal } from './components/ResetConfirmModal';
@@ -41,6 +42,7 @@ export const App: React.FC = () => {
     recordPracticeObservation,
     clearCurrentScene,
     resetStarterScenes,
+    wipeAllLocalData,
     undo,
     redo,
     importScenesJson,
@@ -50,6 +52,7 @@ export const App: React.FC = () => {
   const [activeStation, setActiveStation] = useState<StationId | null>(null);
   const [exhibitionMode, setExhibitionMode] = useState<boolean>(false);
   const [confirmingReset, setConfirmingReset] = useState<boolean>(false);
+  const [ethicsModalOpen, setEthicsModalOpen] = useState<boolean>(false);
   const [statusToast, setStatusToast] = useState<string | null>(null);
 
   const skyEditMode = activeStation === 'telescope' && !exhibitionMode;
@@ -173,7 +176,10 @@ export const App: React.FC = () => {
       }
 
       if (e.key === 'Escape') {
-        if (confirmingReset) {
+        if (ethicsModalOpen) {
+          e.preventDefault();
+          setEthicsModalOpen(false);
+        } else if (confirmingReset) {
           e.preventDefault();
           setConfirmingReset(false);
         } else if (exhibitionMode) {
@@ -188,7 +194,7 @@ export const App: React.FC = () => {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeStation, confirmingReset, exhibitionMode, redo, undo]);
+  }, [activeStation, confirmingReset, ethicsModalOpen, exhibitionMode, redo, undo]);
 
   const handleExportJson = () => {
     const json = serializeScenesToJson(scenesState);
@@ -367,10 +373,24 @@ export const App: React.FC = () => {
             )}
             <button
               type="button"
+              data-testid="top-ethics-btn"
+              aria-pressed={ethicsModalOpen}
+              className={`pixel-hud-btn ${ethicsModalOpen ? 'is-active' : ''}`}
+              onClick={() => {
+                setConfirmingReset(false);
+                setEthicsModalOpen((v) => !v);
+              }}
+              title="AI & Data Ethics Charter, local storage controls, and Zooniverse Talk links"
+            >
+              [i] ETHICS &amp; DATA
+            </button>
+            <button
+              type="button"
               aria-pressed={exhibitionMode}
               className={`pixel-hud-btn btn-gold ${exhibitionMode ? 'is-active' : ''}`}
               onClick={() => {
                 setConfirmingReset(false);
+                setEthicsModalOpen(false);
                 setActiveStation(null);
                 setExhibitionMode((v) => !v);
               }}
@@ -485,6 +505,7 @@ export const App: React.FC = () => {
               placeItem('galaxy', collectionEntryId);
               setActiveStation('telescope');
             }}
+            onOpenEthics={() => setEthicsModalOpen(true)}
             onClose={() => setActiveStation(null)}
           />
         )}
@@ -542,6 +563,19 @@ export const App: React.FC = () => {
                   : 'Sandbox Mode restored to starter showcase.',
               );
             }}
+          />
+        )}
+
+        {ethicsModalOpen && (
+          <EthicsCharterModal
+            onExportJson={handleExportJson}
+            onWipeAllLocalData={() => {
+              wipeAllLocalData();
+              setEthicsModalOpen(false);
+              setActiveStation(null);
+              setStatusToast('Cleared all local Sky Garden saves (Progression & Sandbox).');
+            }}
+            onClose={() => setEthicsModalOpen(false)}
           />
         )}
         </div>

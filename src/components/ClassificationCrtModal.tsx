@@ -1,4 +1,8 @@
 import React, { useMemo, useState } from 'react';
+import {
+  GALAXY_ZOO_TALK_URL,
+  OFFLINE_PRACTICE_AI_DISCLOSURE,
+} from '../data/aiEthicsCharter';
 import { getCollectionEntryBySourceId, SOURCE_GALAXIES } from '../data/demoCatalog';
 import type { ObservationRewardResult } from '../state/useSkyGardenState';
 import type { DemoMode, PracticeObservation } from '../types/skyGarden';
@@ -11,6 +15,7 @@ interface ClassificationCrtModalProps {
   readonly practiceCount: number;
   readonly onRecordObservation: (obs: Omit<PracticeObservation, 'observedAtIso'>) => ObservationRewardResult;
   readonly onHangGalaxyAtScope: (collectionEntryId: string) => void;
+  readonly onOpenEthics?: () => void;
   readonly onClose: () => void;
 }
 
@@ -46,6 +51,7 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
   practiceCount,
   onRecordObservation,
   onHangGalaxyAtScope,
+  onOpenEthics,
   onClose,
 }) => {
   const availableGalaxies = useMemo(() => {
@@ -169,9 +175,22 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
           </div>
         </div>
 
-        <div className="crt-practice-disclaimer">
-          Offline practice workflow on bundled open-licensed survey stamps. Inspection tools are
-          never gated, and Stardust is never awarded for speed or picking a specific label.
+        <div className="crt-workflow-disclosure" data-testid="crt-workflow-disclosure">
+          <div className="crt-workflow-disclosure-copy">
+            <span className="pixel-tag tag-cyan">
+              {OFFLINE_PRACTICE_AI_DISCLOSURE.workflowBadge}
+            </span>
+            <span>
+              Offline Calibration Onramp on unmodified CC BY 4.0 survey stamps — zero ML
+              pre-sorting or model training in loop. Inspection switches are never gated, and
+              Stardust is flat (+3 once per unique subject).
+            </span>
+          </div>
+          {onOpenEthics && (
+            <button type="button" className="pixel-mini-btn btn-cyan" onClick={onOpenEthics}>
+              [i] AI &amp; DATA ETHICS
+            </button>
+          )}
         </div>
 
         <div className="crt-split-grid">
@@ -366,6 +385,23 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                       HANG IN SKY AT TELESCOPE →
                     </button>
                   )}
+                  <a
+                    href={subject.provenance.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pixel-mini-btn pixel-ext-link"
+                  >
+                    SURVEY SOURCE ↗
+                  </a>
+                  <a
+                    href={GALAXY_ZOO_TALK_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pixel-mini-btn btn-cyan pixel-ext-link"
+                    title="Discuss galaxy classifications with volunteers & researchers on Zooniverse Talk"
+                  >
+                    GALAXY ZOO TALK ↗
+                  </a>
                 </div>
               </div>
             ) : (

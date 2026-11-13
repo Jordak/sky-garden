@@ -297,4 +297,101 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
     expect(screen.getByRole('button', { name: /Northern Window/i })).toHaveTextContent('4');
     expect(screen.getByRole('button', { name: /Southern Window/i })).toHaveTextContent('3');
   });
+
+  it('surfaces Zooniverse AI Ethics charter, workflow ML badge, and Talk/provenance links in CRT and Star Atlas', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByTestId('top-ethics-btn'));
+    const charter = screen.getByTestId('ethics-charter-modal');
+    expect(charter).toHaveTextContent(/1\. Build Transparency/i);
+    expect(charter).toHaveTextContent(/2\. Design for the Volunteer Experience/i);
+    expect(charter).toHaveTextContent(/3\. Facilitate Accountability/i);
+    expect(charter).toHaveTextContent(/4\. Commit to Ongoing Dialogue/i);
+
+    const ethicsLink = within(charter).getByRole('link', {
+      name: /ZOONIVERSE AI ETHICS FRAMEWORK/i,
+    });
+    expect(ethicsLink).toHaveAttribute('href', 'https://www.zooniverse.org/about/ai-ethics');
+    expect(
+      within(charter).getByRole('link', { name: /GALAXY ZOO TALK BOARDS/i }),
+    ).toHaveAttribute('href', 'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk');
+    expect(
+      within(charter).getByRole('link', { name: /PROJECT FEEDBACK & ISSUES/i }),
+    ).toHaveAttribute('href', 'https://github.com/Jordak/sky-garden/issues');
+
+    // Escape closes Ethics modal
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('ethics-charter-modal')).not.toBeInTheDocument();
+
+    // CRT surfaces workflow ML disclosure and opens Ethics overlay without losing CRT session
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+    const disclosure = screen.getByTestId('crt-workflow-disclosure');
+    expect(disclosure).toHaveTextContent(/OFFLINE CALIBRATION · NO ML IN LOOP/i);
+
+    fireEvent.click(within(disclosure).getByRole('button', { name: /\[i\] AI & DATA ETHICS/i }));
+    expect(screen.getByTestId('ethics-charter-modal')).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('ethics-charter-modal')).not.toBeInTheDocument();
+    expect(screen.getByText(/BLINK COMPARATOR MK-II/i)).toBeInTheDocument();
+
+    // Post-classification status box and Star Atlas expose Survey Source & Galaxy Zoo Talk links
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    const statusBox = screen.getByRole('status');
+    expect(within(statusBox).getByRole('link', { name: /SURVEY SOURCE/i })).toHaveAttribute(
+      'href',
+      expect.stringContaining('legacysurvey.org'),
+    );
+    expect(within(statusBox).getByRole('link', { name: /GALAXY ZOO TALK/i })).toHaveAttribute(
+      'href',
+      'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /STAR ATLAS/i }));
+    const atlasDialog = screen.getByRole('dialog', { name: /ILLUMINATED STAR ATLAS/i });
+    expect(within(atlasDialog).getByRole('link', { name: /SURVEY SOURCE/i })).toHaveAttribute(
+      'href',
+      expect.stringContaining('legacysurvey.org'),
+    );
+    expect(within(atlasDialog).getByRole('link', { name: /GALAXY ZOO TALK/i })).toHaveAttribute(
+      'href',
+      'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk',
+    );
+  });
+
+  it('wipes both Progression and Sandbox localStorage saves after confirmation in the Ethics & Data modal', () => {
+    render(<App />);
+
+    // Create persisted changes in both Sandbox and Progression saves
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+    fireEvent.click(screen.getByRole('button', { name: /WORKBENCH/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Clear Dark Sky/i }));
+    expect(screen.queryByTestId('backdrop-starfield')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('mode-progression-btn'));
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+    expect(window.localStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(window.localStorage.getItem(PROGRESSION_STORAGE_KEY)).not.toBeNull();
+
+    // Cancel wipe preserves state & storage
+    fireEvent.click(screen.getByTestId('top-ethics-btn'));
+    fireEvent.click(screen.getByTestId('wipe-all-data-btn'));
+    fireEvent.click(screen.getByTestId('cancel-wipe-all-btn'));
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('3 STARDUST');
+    expect(window.localStorage.getItem(PROGRESSION_STORAGE_KEY)).not.toBeNull();
+
+    // Confirm wipe clears both Progression and Sandbox saves in localStorage
+    fireEvent.click(screen.getByTestId('wipe-all-data-btn'));
+    fireEvent.click(screen.getByTestId('confirm-wipe-all-btn'));
+
+    expect(screen.queryByTestId('ethics-charter-modal')).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(PROGRESSION_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(screen.getByTestId('stardust-counter')).toHaveTextContent('0 STARDUST');
+
+    // Sandbox falls back cleanly to its default starfield showcase
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+    expect(screen.getByTestId('backdrop-starfield')).toBeInTheDocument();
+  });
 });

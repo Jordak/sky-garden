@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { GALAXY_ZOO_TALK_URL } from '../data/aiEthicsCharter';
 import { DEMO_COLLECTION_ENTRIES, getSourceGalaxy } from '../data/demoCatalog';
 import type { DemoMode, SceneHemisphere } from '../types/skyGarden';
 
@@ -302,6 +303,24 @@ export const StarAtlasModal: React.FC<StarAtlasModalProps> = ({
                 >
                   + HANG IN {activeHemisphere.toUpperCase()} SKY
                 </button>
+                <div className="atlas-community-links">
+                  <a
+                    href={galaxy.provenance.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pixel-mini-btn pixel-ext-link"
+                  >
+                    SURVEY SOURCE ↗
+                  </a>
+                  <a
+                    href={GALAXY_ZOO_TALK_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pixel-mini-btn btn-cyan pixel-ext-link"
+                  >
+                    GALAXY ZOO TALK ↗
+                  </a>
+                </div>
               </div>
             </div>
 

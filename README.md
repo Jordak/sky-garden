@@ -14,6 +14,7 @@ Play the hosted demo directly in any desktop browser with no download required: 
 - **Zero Accuracy or Speed Pressure:** Each unique subject awards a flat, answer-agnostic `+3 ✦ Stardust` once upon completion with zero streak multipliers, countdowns, or speed bonuses.
 - **Immutable Scientific Source & Verified Coordinates:** Cutout pixels and verified `ICRS (J2000)` metadata live strictly on immutable `SourceGalaxy` records (`withheld`/`unverified` coordinates stay omitted rather than fabricated), completely separate from decorative sky placements (`PlacedGalaxy`).
 - **Clear Offline Practice Boundary:** Every classification action is explicitly labeled offline practice so volunteers never mistake sandbox interactions for live Galaxy Zoo consensus votes.
+- **Zooniverse AI Ethics Alignment:** Includes an in-app `[i] ETHICS & DATA` charter aligned with the [Zooniverse AI Ethics Framework](https://www.zooniverse.org/about/ai-ethics), surfacing explicit workflow ML/*Zoobot* disclosure tags (`OFFLINE CALIBRATION · NO ML IN LOOP`), local data export/wipe controls, and direct links to survey provenance and Galaxy Zoo Talk.
 
 ## Two Switchable Demo Profiles
 
