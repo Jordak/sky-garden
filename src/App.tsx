@@ -422,17 +422,6 @@ export const App: React.FC = () => {
             >
               {audioMuted ? '♪ SFX OFF' : '♪ SFX ON'}
             </button>
-            {exhibitionMode && (
-              <button
-                type="button"
-                data-testid="gaze-export-postcard-btn"
-                className="pixel-hud-btn"
-                onClick={handleExportPostcard}
-                title="Render and download a PNG observatory postcard with survey credits"
-              >
-                ⤓ EXPORT POSTCARD (PNG)
-              </button>
-            )}
             <button
               type="button"
               data-testid="top-ethics-btn"
@@ -446,6 +435,17 @@ export const App: React.FC = () => {
             >
               [i] ETHICS &amp; DATA
             </button>
+            {exhibitionMode && (
+              <button
+                type="button"
+                data-testid="gaze-export-postcard-btn"
+                className="pixel-hud-btn"
+                onClick={handleExportPostcard}
+                title="Render and download a PNG observatory postcard with survey credits"
+              >
+                ⤓ EXPORT POSTCARD (PNG)
+              </button>
+            )}
             <button
               type="button"
               aria-pressed={exhibitionMode}
@@ -510,6 +510,22 @@ export const App: React.FC = () => {
               roomCanvasRef.current = node;
             }}
           />
+
+        {exhibitionMode && (
+          <div className="exhibition-plaque" data-testid="exhibition-plaque">
+            <span className="exhibition-plaque-hemi">
+              {activeScene.hemisphere === 'north'
+                ? 'NORTHERN OBSERVATORY DOME'
+                : 'SOUTHERN OBSERVATORY DOME'}
+            </span>
+            <strong className="exhibition-plaque-title">
+              {activeScene.exhibitionTitle.trim() || 'Untitled Sky Study'}
+            </strong>
+            <span className="exhibition-plaque-sub">
+              CREATIVE SKY ARRANGEMENT · DEMO SURVEY CUTOUTS
+            </span>
+          </div>
+        )}
 
         {/* Non-destructive Pixel Toast / Storage Warning */}
         {((storageWarning && !exhibitionMode) || statusToast) && (

@@ -639,6 +639,10 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
       fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
 
       fireEvent.click(screen.getByRole('button', { name: /QUIET GAZE/i }));
+      const plaque = screen.getByTestId('exhibition-plaque');
+      expect(plaque).toHaveTextContent(/NORTHERN OBSERVATORY DOME/i);
+      expect(plaque).toHaveTextContent(/Quiet Study of Rings & Bridges/i);
+      expect(plaque).toHaveTextContent(/CREATIVE SKY ARRANGEMENT/i);
       fireEvent.click(screen.getByTestId('gaze-export-postcard-btn'));
 
       await waitFor(() => {

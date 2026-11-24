@@ -73,8 +73,8 @@ input {
 .game-cabinet-column {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  width: min(calc(100vw - 20px), calc((100vh - 54px) * (16 / 9)));
+  gap: 5px;
+  width: min(calc(100vw - 20px), calc((100vh - 64px) * (16 / 9)));
 }
 
 .observatory-world-viewport {
@@ -250,7 +250,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 
@@ -258,7 +258,7 @@ input {
 .pixel-hud-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   pointer-events: auto;
 }
@@ -266,13 +266,13 @@ input {
 .pixel-brand-plaque {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 9px;
+  gap: 5px;
+  padding: 3px 7px;
   background: var(--void);
   border: 2px solid var(--brass-mid);
   box-shadow: 3px 3px 0 #000000;
-  font-size: 0.76rem;
-  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
   color: var(--candle-cream);
 }
 
@@ -284,17 +284,17 @@ input {
 .pixel-hemi-switch,
 .pixel-mode-switch {
   display: inline-flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 .pixel-mode-switch .pixel-hud-btn {
-  padding: 2px 6px;
-  font-size: 0.62rem;
+  padding: 2px 5px;
+  font-size: 0.6rem;
 }
 
 .pixel-stardust-badge {
-  padding: 4px 8px;
-  font-size: 0.68rem;
+  padding: 3px 6px;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   background: #23180f;
@@ -316,12 +316,12 @@ input {
 }
 
 .pixel-hud-btn {
-  padding: 4px 8px;
+  padding: 3px 6px;
   background: #10152b;
   border: 2px solid var(--stone-mid);
   box-shadow: 2px 2px 0 #000000;
   color: var(--star-ice);
-  font-size: 0.69rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -358,8 +358,8 @@ input {
 }
 
 .pixel-save-lamp {
-  padding: 4px 7px;
-  font-size: 0.66rem;
+  padding: 3px 6px;
+  font-size: 0.62rem;
   font-weight: 700;
   background: var(--void);
   border: 2px solid #2b6e59;
@@ -447,6 +447,7 @@ input {
   align-items: center;
   gap: 2px;
   text-align: center;
+  pointer-events: none;
 }
 
 .exhibition-plaque-hemi {
@@ -757,6 +758,11 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
+}
+
+.crt-subject-switcher .pixel-mini-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .crt-subject-counter {
@@ -1504,12 +1510,12 @@ input {
 }
 
 .crt-workflow-source-panel {
-  padding: 9px 11px;
+  padding: 7px 9px;
   background: #0b1b24;
   border: 2px solid #264857;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .crt-workflow-source-header {
@@ -1562,7 +1568,7 @@ input {
 
 .crt-workflow-json-area {
   resize: vertical;
-  min-height: 44px;
+  min-height: 32px;
   font-family: var(--font-body);
 }
 

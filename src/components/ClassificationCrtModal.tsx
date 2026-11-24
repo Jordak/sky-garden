@@ -505,7 +505,7 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                     id="panoptes-wf-json"
                     data-testid="panoptes-json-input"
                     className="pixel-input crt-workflow-json-area"
-                    rows={2}
+                    rows={1}
                     value={panoptesJsonInput}
                     onChange={(e) => setPanoptesJsonInput(e.target.value)}
                     placeholder='{"workflows":[{"id":"20751","first_task":"T0","tasks":{...}}]}'

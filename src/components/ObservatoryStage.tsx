@@ -419,20 +419,6 @@ export const ObservatoryStage: React.FC<ObservatoryStageProps> = ({
           );
         })}
       </div>
-
-      {exhibitionMode && (
-        <div className="exhibition-plaque">
-          <span className="exhibition-plaque-hemi">
-            {scene.hemisphere === 'north' ? 'NORTHERN OBSERVATORY DOME' : 'SOUTHERN OBSERVATORY DOME'}
-          </span>
-          <strong className="exhibition-plaque-title">
-            {scene.exhibitionTitle.trim() || 'Untitled Sky Study'}
-          </strong>
-          <span className="exhibition-plaque-sub">
-            CREATIVE SKY ARRANGEMENT · DEMO SURVEY CUTOUTS
-          </span>
-        </div>
-      )}
     </div>
   );
 };
