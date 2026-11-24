@@ -1,3 +1,4 @@
+import { AUDIO_MUTED_STORAGE_KEY } from '../audio/observatoryAudio';
 import {
   CELESTIAL_DECOR_ITEMS,
   createInitialProgressionState,
@@ -583,6 +584,7 @@ export function clearAllSavedData(storage?: Pick<Storage, 'removeItem'>): boolea
     targetStorage.removeItem(PROGRESSION_CORRUPT_BACKUP_KEY);
     targetStorage.removeItem(STORAGE_KEY);
     targetStorage.removeItem(CORRUPT_BACKUP_KEY);
+    targetStorage.removeItem(AUDIO_MUTED_STORAGE_KEY);
     return true;
   } catch {
     return false;

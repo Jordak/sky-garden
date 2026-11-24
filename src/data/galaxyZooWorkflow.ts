@@ -1,5 +1,16 @@
 import type { PanoptesAnnotation } from '../types/skyGarden';
 
+export const GALAXY_ZOO_HELP_GUIDE_URL =
+  'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/1268/570127';
+export const GALAXY_ZOO_HELP_BOARD_URL =
+  'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/1268';
+export const GALAXY_ZOO_FAQ_URL =
+  'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/about/faq';
+export const GALAXY_ZOO_RESEARCH_URL =
+  'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/about/research';
+export const GALAXY_ZOO_TALK_TAGS_BASE =
+  'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/tags';
+
 export type AnswerIconId =
   | 'smooth'
   | 'features-disk'
@@ -25,6 +36,16 @@ export type AnswerIconId =
   | 'ring-dust'
   | 'none';
 
+export interface PanoptesReferenceLink {
+  readonly label: string;
+  readonly url: string;
+}
+
+export interface PanoptesProjectGuideItem {
+  readonly title: string;
+  readonly contentMarkdown: string;
+}
+
 export interface PanoptesFieldGuideItem {
   readonly icon: AnswerIconId;
   readonly title: string;
@@ -43,6 +64,8 @@ export interface PanoptesSingleTask {
   readonly shortTitle: string;
   readonly question: string;
   readonly helpTip: string;
+  readonly helpMarkdown?: string;
+  readonly referenceLinks?: readonly PanoptesReferenceLink[];
   readonly fieldGuide: readonly PanoptesFieldGuideItem[];
   readonly answers: readonly PanoptesAnswerOption[];
 }
@@ -52,7 +75,18 @@ export interface PanoptesWorkflow {
   readonly version: string;
   readonly display_name: string;
   readonly first_task: string;
+  readonly sourceKind?: 'offline-demo' | 'panoptes-live' | 'panoptes-json';
+  readonly sourceLabel?: string;
+  readonly projectId?: string;
+  readonly projectFieldGuide?: readonly PanoptesProjectGuideItem[];
   readonly tasks: Readonly<Record<string, PanoptesSingleTask>>;
+}
+
+function talkTagLink(tag: string, label?: string): PanoptesReferenceLink {
+  return {
+    label: label ?? `#${tag}`,
+    url: `${GALAXY_ZOO_TALK_TAGS_BASE}/${tag}`,
+  };
 }
 
 export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<PanoptesWorkflow>({
@@ -60,6 +94,8 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
   version: '2.0',
   display_name: 'Galaxy Zoo Offline Morphology Tree (Panoptes-Shaped Demo)',
   first_task: 'T0',
+  sourceKind: 'offline-demo',
+  sourceLabel: 'Offline Calibration Onramp (bundled)',
   tasks: {
     T0: {
       type: 'single',
@@ -68,6 +104,10 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
         'Is the central galaxy simply smooth and rounded, with no sign of a disk or spiral arms?',
       helpTip:
         'Focus on the target centered under the reticle. Try FAINT SHELLS or INVERT if outer structure looks very faint against the dark sky.',
+      referenceLinks: [
+        talkTagLink('elliptical', '#elliptical examples'),
+        talkTagLink('artifact', '#artifact examples'),
+      ],
       fieldGuide: [
         {
           icon: 'smooth',
@@ -112,6 +152,7 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
       question: 'How rounded does the smooth galaxy appear?',
       helpTip:
         'Judge the main bright body rather than diffuse outer haloes. Compare the major and minor axes across the reticle.',
+      referenceLinks: [talkTagLink('elliptical', '#elliptical examples')],
       fieldGuide: [
         {
           icon: 'round',
@@ -156,6 +197,10 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
       question: 'Could this be a disk viewed edge-on?',
       helpTip:
         'An edge-on disk forms a narrow streak or needle often bisected by a dark dust lane. If you can trace a circular ring or arms, pick No.',
+      referenceLinks: [
+        talkTagLink('edge-on', '#edge-on examples'),
+        talkTagLink('dustlane', '#dustlane examples'),
+      ],
       fieldGuide: [
         {
           icon: 'edge-on',
@@ -189,6 +234,9 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
       question: 'Does the edge-on disk show a central bulge at its core?',
       helpTip:
         'Switch to 2× or 4× zoom and pan along the disk midplane; BRIGHT CORE stretch helps separate an over-bright bulge from the thin disk.',
+      referenceLinks: [
+        talkTagLink('box-peanut-structure', '#box-peanut-structure examples'),
+      ],
       fieldGuide: [
         {
           icon: 'bulge-round',
@@ -233,6 +281,10 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
       question: 'Is there a straight stellar bar running through the center of the galaxy?',
       helpTip:
         'Bright barred cores often saturate at default exposure. Try BRIGHT CORE or lower Brightness to check if a linear bridge feeds the inner arms.',
+      referenceLinks: [
+        talkTagLink('bar', '#bar examples'),
+        talkTagLink('strong-bar', '#strong-bar examples'),
+      ],
       fieldGuide: [
         {
           icon: 'bar-strong',
@@ -277,6 +329,10 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
       question: 'Is there any sign of a spiral arm pattern?',
       helpTip:
         'Look for curved luminous lanes winding outward. A closed detached loop with no spiral trace belongs under Ring or Smooth Disk.',
+      referenceLinks: [
+        talkTagLink('spiral', '#spiral examples'),
+        talkTagLink('ring', '#ring examples'),
+      ],
       fieldGuide: [
         {
           icon: 'spiral-yes',
@@ -310,6 +366,7 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
       question: 'How tightly wound do the spiral arms appear?',
       helpTip:
         'Trace the angle between the inner ring/bar tip and the outer arm sweep; FAINT SHELLS helps follow dimming outer arms.',
+      referenceLinks: [talkTagLink('spiral', '#spiral examples')],
       fieldGuide: [
         {
           icon: 'wind-tight',
@@ -355,6 +412,11 @@ export const DEMO_GALAXY_ZOO_WORKFLOW: PanoptesWorkflow = Object.freeze<Panoptes
         'Is there any sign of a merger, tidal debris, or unusual outer structure?',
       helpTip:
         'Use FAINT SHELLS or INVERT plus 2×/4× pan around the edges of the frame to spot faint concentric shells, bridges, or close companions.',
+      referenceLinks: [
+        talkTagLink('merger', '#merger examples'),
+        talkTagLink('disturbed', '#disturbed examples'),
+        talkTagLink('dustlane', '#dustlane examples'),
+      ],
       fieldGuide: [
         {
           icon: 'merger',
@@ -420,18 +482,27 @@ export function summarizeAnnotations(
   const last = annotations[annotations.length - 1];
   const primaryMorphology = first ? resolveLabel(first) : 'Observed';
 
+  const hasMergerTask = Boolean(workflow.tasks.T6_MERGER);
   const middleLabels = annotations
-    .filter((a) => a.task !== workflow.first_task && a.task !== 'T6_MERGER')
+    .filter((a) =>
+      hasMergerTask
+        ? a.task !== workflow.first_task && a.task !== 'T6_MERGER'
+        : a.task !== workflow.first_task && a !== last,
+    )
     .map(resolveLabel);
 
   const detailChoice =
     middleLabels.length > 0
       ? middleLabels.join(' → ')
       : annotations.length === 1
-        ? 'Single-step artifact check'
+        ? 'Single-step check'
         : primaryMorphology;
 
-  const oddityEntry = annotations.find((a) => a.task === 'T6_MERGER');
+  const oddityEntry = hasMergerTask
+    ? annotations.find((a) => a.task === 'T6_MERGER')
+    : last && last.task !== workflow.first_task
+      ? last
+      : undefined;
   const oddityNote = oddityEntry
     ? resolveLabel(oddityEntry)
     : last && last.task !== workflow.first_task

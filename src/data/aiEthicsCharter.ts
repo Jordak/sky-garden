@@ -13,7 +13,7 @@ export const OFFLINE_PRACTICE_AI_DISCLOSURE: WorkflowAiDisclosure = Object.freez
   workflowBadge: 'OFFLINE CALIBRATION · NO ML IN LOOP',
   usesMachineLearning: false,
   summary:
-    'Eight unmodified CC BY 4.0 DESI & SDSS cutouts. No machine-learning pre-sorting, synthetic imagery, or model training runs in this prototype.',
+    'Ten unmodified CC BY 4.0 DESI & SDSS cutouts. No machine-learning pre-sorting, synthetic imagery, or model training runs in this prototype.',
   liveIntegrationPolicy:
     'In a live Zooniverse Custom Front End, workflows must explicitly badge whether subjects are prioritized by or used to train models such as Zoobot so volunteers can choose where to contribute.',
 });
@@ -31,14 +31,14 @@ export const ETHICS_PILLARS: readonly EthicsPillar[] = Object.freeze([
     heading: '1. Build Transparency',
     principle: 'Disclose AI/ML roles clearly across code, imagery, and workflows.',
     implementation:
-      'Code and procedural pixel/SVG props were vibe-coded with an AI coding agent under human review. All eight galaxy cutouts are genuine, unedited DESI & SDSS survey images—never generative-AI astronomy—and future live workflows will surface explicit ML/Zoobot disclosure tags.',
+      'Code and procedural pixel/SVG props were vibe-coded with an AI coding agent under human review. All ten cutouts are genuine, unedited DESI & SDSS survey images—never generative-AI astronomy—and live or previewed workflows surface explicit ML/Zoobot disclosure tags.',
   },
   {
     id: 'volunteer-experience',
     heading: '2. Design for the Volunteer Experience',
     principle: 'Respect volunteer agency, consent, and clear onboarding onramps.',
     implementation:
-      'Volunteers choose workflows knowing whether AI/ML is involved. This 8-galaxy offline bundle stays available as a low-pressure Calibration Onramp even after live Zooniverse subjects connect.',
+      'Volunteers choose workflows knowing whether AI/ML is involved. This 10-subject offline bundle stays available as a low-pressure Calibration Onramp even alongside Panoptes workflow previews or future live connections.',
   },
   {
     id: 'accountability',

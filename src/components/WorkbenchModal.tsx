@@ -27,6 +27,7 @@ interface WorkbenchModalProps {
     exhibitionTitle?: string;
   }) => void;
   readonly onExportJson: () => void;
+  readonly onExportPostcard: () => void;
   readonly onImportJsonFile: (file: File) => void;
   readonly onResetDemo: () => void;
   readonly onClose: () => void;
@@ -46,6 +47,7 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
   onUnlockDecor,
   onSelectOrUnlockAppearance,
   onExportJson,
+  onExportPostcard,
   onImportJsonFile,
   onResetDemo,
   onClose,
@@ -159,6 +161,14 @@ export const WorkbenchModal: React.FC<WorkbenchModalProps> = ({
               <div className="workbench-ledger-actions">
                 <button type="button" className="pixel-mini-btn" onClick={onExportJson}>
                   EXPORT JSON
+                </button>
+                <button
+                  type="button"
+                  data-testid="workbench-export-postcard-btn"
+                  className="pixel-mini-btn btn-cyan"
+                  onClick={onExportPostcard}
+                >
+                  EXPORT POSTCARD (PNG)
                 </button>
                 <button
                   type="button"

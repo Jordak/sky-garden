@@ -225,6 +225,62 @@ export const SOURCE_GALAXIES: readonly SourceGalaxy[] = Object.freeze([
         'Preliminary pipeline coordinates have not passed catalog verification and are withheld.',
     },
   },
+  {
+    id: 'src-m87',
+    catalogName: 'M87 (NGC 4486)',
+    commonTitle: 'Virgo Giant Smooth Elliptical',
+    morphologyNote:
+      'Massive, completely round smooth golden elliptical in Virgo whose core hosts a faint relativistic optical jet visible under higher contrast.',
+    scienceContext:
+      'Giant ellipticals let volunteers practice the Smooth & Rounded → Completely Round branch without confusing outer stellar haloes for disk structure.',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/m87.jpg`,
+    provenance: {
+      survey: 'Sloan Digital Sky Survey',
+      dataRelease: 'SDSS DR18 (gri composite)',
+      license: 'CC BY 4.0',
+      attribution: 'SDSS Collaboration (www.sdss.org)',
+      sourceUrl:
+        'https://skyserver.sdss.org/dr18/VisualTools/navi?ra=187.70593&dec=12.39111&scale=0.6',
+      angularFieldArcmin: 5.12,
+    },
+    skyCoordinates: {
+      status: 'verified',
+      frame: 'ICRS (J2000)',
+      raDeg: 187.7059,
+      decDeg: 12.3911,
+      raHms: '12h 30m 49.4s',
+      decDms: '+12° 23′ 28″',
+      constellation: 'Virgo',
+    },
+  },
+  {
+    id: 'src-hd-108642',
+    catalogName: 'HD 108642 (HIP 60880)',
+    commonTitle: 'Foreground Diffraction Star',
+    morphologyNote:
+      'Saturated Milky Way foreground star with four prominent telescope diffraction spikes and a horizontal detector bleed artifact.',
+    scienceContext:
+      'Calibration plate for the single-step Star or Artifact branch: flagging saturated foreground stars cleanly earns the exact same flat +3 Stardust.',
+    originalImageUrl: `${ASSET_BASE_URL}assets/galaxies/hd-108642.jpg`,
+    provenance: {
+      survey: 'DESI Legacy Imaging Surveys',
+      dataRelease: 'DR10 (DECam g, r, z composite)',
+      license: 'CC BY 4.0',
+      attribution: 'Legacy Surveys / D. Lang (Perimeter Institute)',
+      sourceUrl:
+        'https://www.legacysurvey.org/viewer?ra=187.1592&dec=26.2269&layer=ls-dr10&zoom=13',
+      angularFieldArcmin: 4.27,
+    },
+    skyCoordinates: {
+      status: 'verified',
+      frame: 'ICRS (J2000)',
+      raDeg: 187.1592,
+      decDeg: 26.2269,
+      raHms: '12h 28m 38.2s',
+      decDms: '+26° 13′ 37″',
+      constellation: 'Coma Berenices',
+    },
+  },
 ]);
 
 export const DEMO_COLLECTION_ENTRIES: readonly CollectionEntry[] = Object.freeze(

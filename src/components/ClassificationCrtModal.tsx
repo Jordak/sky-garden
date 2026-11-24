@@ -1,16 +1,31 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  playClick,
+  playObservationLogged,
+  playStepAdvance,
+  playStepBack,
+} from '../audio/observatoryAudio';
+import {
   GALAXY_ZOO_TALK_URL,
   OFFLINE_PRACTICE_AI_DISCLOSURE,
 } from '../data/aiEthicsCharter';
 import { getCollectionEntryBySourceId, SOURCE_GALAXIES } from '../data/demoCatalog';
 import {
   DEMO_GALAXY_ZOO_WORKFLOW,
+  GALAXY_ZOO_FAQ_URL,
+  GALAXY_ZOO_HELP_BOARD_URL,
+  GALAXY_ZOO_HELP_GUIDE_URL,
+  type PanoptesWorkflow,
   summarizeAnnotations,
 } from '../data/galaxyZooWorkflow';
+import {
+  fetchPublicPanoptesWorkflow,
+  parsePanoptesWorkflowJson,
+} from '../services/panoptesWorkflowAdapter';
 import type { ObservationRewardResult } from '../state/useSkyGardenState';
 import type { DemoMode, PanoptesAnnotation, PracticeObservation } from '../types/skyGarden';
 import { MorphologyGlyph } from './MorphologyGlyph';
+import { SafeMarkdownBlock } from './SafeMarkdownBlock';
 
 interface ClassificationCrtModalProps {
   readonly demoMode: DemoMode;
@@ -69,7 +84,13 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
   onOpenEthics,
   onClose,
 }) => {
-  const workflow = DEMO_GALAXY_ZOO_WORKFLOW;
+  const [workflow, setWorkflow] = useState<PanoptesWorkflow>(DEMO_GALAXY_ZOO_WORKFLOW);
+  const [workflowWarnings, setWorkflowWarnings] = useState<readonly string[]>([]);
+  const [sourcePanelOpen, setSourcePanelOpen] = useState<boolean>(false);
+  const [panoptesIdInput, setPanoptesIdInput] = useState<string>('20751');
+  const [panoptesJsonInput, setPanoptesJsonInput] = useState<string>('');
+  const [workflowLoading, setWorkflowLoading] = useState<boolean>(false);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
 
   const availableGalaxies = useMemo(() => {
     if (demoMode === 'sandbox') return SOURCE_GALAXIES;
@@ -165,12 +186,52 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
     setContrast(100);
   };
 
-  const resetTreeSession = () => {
+  const resetTreeSession = (targetWorkflow: PanoptesWorkflow = workflow) => {
     setStepHistory([]);
-    setCurrentTaskId(workflow.first_task);
+    setCurrentTaskId(targetWorkflow.first_task);
     setPickedAnswerIndex(null);
     setLastLoggedTrail([]);
     setLastReward(null);
+  };
+
+  const applyLoadedWorkflow = (
+    nextWorkflow: PanoptesWorkflow,
+    warnings: readonly string[],
+  ) => {
+    setWorkflow(nextWorkflow);
+    setWorkflowWarnings(warnings);
+    setWorkflowError(null);
+    resetTreeSession(nextWorkflow);
+  };
+
+  const handleFetchPanoptesId = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (workflowLoading) return;
+    playClick();
+    setWorkflowLoading(true);
+    setWorkflowError(null);
+    const result = await fetchPublicPanoptesWorkflow(panoptesIdInput);
+    setWorkflowLoading(false);
+    if ('error' in result) {
+      setWorkflowError(result.error);
+      return;
+    }
+    applyLoadedWorkflow(result.workflow, result.warnings);
+  };
+
+  const handleLoadPanoptesJson = () => {
+    playClick();
+    const result = parsePanoptesWorkflowJson(panoptesJsonInput);
+    if ('error' in result) {
+      setWorkflowError(result.error);
+      return;
+    }
+    applyLoadedWorkflow(result.workflow, result.warnings);
+  };
+
+  const handleResetToDemoWorkflow = () => {
+    playClick();
+    applyLoadedWorkflow(DEMO_GALAXY_ZOO_WORKFLOW, []);
   };
 
   const stepSubject = (delta: number) => {
@@ -256,16 +317,19 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
     const option = activeTask.answers[idx];
     if (!option) return;
     if (option.next !== '' && workflow.tasks[option.next]) {
+      playStepAdvance();
       setStepHistory((prev) => [...prev, { taskId: currentTaskId, answerIndex: idx }]);
       setCurrentTaskId(option.next);
       setPickedAnswerIndex(null);
       return;
     }
+    playClick();
     setPickedAnswerIndex(idx);
   };
 
   const handleStepBack = () => {
     if (stepHistory.length === 0) return;
+    playStepBack();
     const previous = stepHistory[stepHistory.length - 1];
     setStepHistory((prev) => prev.slice(0, -1));
     setCurrentTaskId(previous.taskId);
@@ -275,6 +339,7 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
   const handleJumpToStep = (historyIndex: number) => {
     const target = stepHistory[historyIndex];
     if (!target) return;
+    playStepBack();
     setStepHistory((prev) => prev.slice(0, historyIndex));
     setCurrentTaskId(target.taskId);
     setPickedAnswerIndex(target.answerIndex);
@@ -308,6 +373,7 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
       workflowVersion: workflow.version,
       annotations,
     });
+    playObservationLogged();
     setLastLoggedTrail(annotations);
     setLastReward({
       subjectId: subject.id,
@@ -351,20 +417,126 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
         <div className="crt-workflow-disclosure" data-testid="crt-workflow-disclosure">
           <div className="crt-workflow-disclosure-copy">
             <span className="pixel-tag tag-cyan">
-              {OFFLINE_PRACTICE_AI_DISCLOSURE.workflowBadge}
+              {workflow.sourceKind && workflow.sourceKind !== 'offline-demo'
+                ? `PANOPTES READ-ONLY · #${workflow.id}`
+                : OFFLINE_PRACTICE_AI_DISCLOSURE.workflowBadge}
             </span>
             <span>
-              Offline Panoptes-shaped Calibration Onramp on unmodified CC BY 4.0 survey stamps —
-              zero ML pre-sorting or model training in loop. Zoom, pan, and stretch controls are
-              never gated, and Stardust is flat (+3 once per unique subject).
+              {workflow.sourceKind && workflow.sourceKind !== 'offline-demo'
+                ? `Previewing "${workflow.display_name}" (v${workflow.version}) against bundled CC BY 4.0 stamps — zero live submissions.`
+                : 'Offline Panoptes-shaped Calibration Onramp on unmodified CC BY 4.0 survey stamps — zero ML pre-sorting or model training in loop. Zoom, pan, and stretch controls are never gated, and Stardust is flat (+3 once per unique subject).'}
             </span>
           </div>
-          {onOpenEthics && (
-            <button type="button" className="pixel-mini-btn btn-cyan" onClick={onOpenEthics}>
-              [i] AI &amp; DATA ETHICS
+          <div className="crt-workflow-disclosure-actions">
+            <button
+              type="button"
+              data-testid="crt-workflow-source-toggle"
+              aria-expanded={sourcePanelOpen}
+              className={`pixel-mini-btn ${sourcePanelOpen ? 'is-on' : ''}`}
+              onClick={() => {
+                playClick();
+                setSourcePanelOpen((v) => !v);
+              }}
+            >
+              ⚙ WORKFLOW SOURCE
             </button>
-          )}
+            {onOpenEthics && (
+              <button type="button" className="pixel-mini-btn btn-cyan" onClick={onOpenEthics}>
+                [i] AI &amp; DATA ETHICS
+              </button>
+            )}
+          </div>
         </div>
+
+        {sourcePanelOpen && (
+          <div className="crt-workflow-source-panel" data-testid="crt-workflow-source-panel">
+            <div className="crt-workflow-source-header">
+              <span>
+                <strong>ACTIVE TREE:</strong> {workflow.display_name} (
+                {Object.keys(workflow.tasks).length} tasks · v{workflow.version})
+              </span>
+              <div className="crt-workflow-source-badges">
+                <span className="pixel-tag tag-amber">READ-ONLY · ZERO LIVE SUBMISSIONS</span>
+                {workflow.sourceKind && workflow.sourceKind !== 'offline-demo' && (
+                  <button
+                    type="button"
+                    data-testid="panoptes-reset-demo-btn"
+                    className="pixel-mini-btn"
+                    onClick={handleResetToDemoWorkflow}
+                  >
+                    RESET TO OFFLINE DEMO
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="crt-workflow-source-grid">
+              <form className="crt-workflow-source-row" onSubmit={handleFetchPanoptesId}>
+                <label htmlFor="panoptes-wf-id" className="crt-source-label">
+                  PUBLIC ZOONIVERSE WORKFLOW ID
+                </label>
+                <div className="crt-source-inline">
+                  <input
+                    id="panoptes-wf-id"
+                    data-testid="panoptes-workflow-id-input"
+                    type="text"
+                    className="pixel-input"
+                    value={panoptesIdInput}
+                    onChange={(e) => setPanoptesIdInput(e.target.value)}
+                    placeholder="e.g. 20751 or 5733"
+                  />
+                  <button
+                    type="submit"
+                    data-testid="panoptes-load-id-btn"
+                    className="pixel-mini-btn btn-cyan"
+                    disabled={workflowLoading}
+                  >
+                    {workflowLoading ? 'FETCHING...' : 'LOAD PUBLIC ID'}
+                  </button>
+                </div>
+              </form>
+
+              <div className="crt-workflow-source-row">
+                <label htmlFor="panoptes-wf-json" className="crt-source-label">
+                  OR PASTE PANOPTES WORKFLOW JSON (OFFLINE)
+                </label>
+                <div className="crt-source-inline">
+                  <textarea
+                    id="panoptes-wf-json"
+                    data-testid="panoptes-json-input"
+                    className="pixel-input crt-workflow-json-area"
+                    rows={2}
+                    value={panoptesJsonInput}
+                    onChange={(e) => setPanoptesJsonInput(e.target.value)}
+                    placeholder='{"workflows":[{"id":"20751","first_task":"T0","tasks":{...}}]}'
+                  />
+                  <button
+                    type="button"
+                    data-testid="panoptes-json-load-btn"
+                    className="pixel-mini-btn"
+                    disabled={panoptesJsonInput.trim().length === 0}
+                    onClick={handleLoadPanoptesJson}
+                  >
+                    LOAD JSON
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {workflowError && (
+              <p className="crt-workflow-error" role="alert">
+                {workflowError}
+              </p>
+            )}
+            {workflowWarnings.length > 0 && (
+              <div className="crt-workflow-warnings" data-testid="panoptes-adapter-warnings">
+                {workflowWarnings.map((w, idx) => (
+                  <span key={idx}>• {w}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="crt-split-grid">
           {/* Left Optical Plate Viewport + Ungated Optical Controls */}
@@ -459,7 +631,10 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                   aria-label={`Zoom ${level}x`}
                   aria-pressed={zoomLevel === level}
                   className={`pixel-switch-btn ${zoomLevel === level ? 'is-on' : ''}`}
-                  onClick={() => applyZoom(level)}
+                  onClick={() => {
+                    playClick();
+                    applyZoom(level);
+                  }}
                 >
                   {level}×
                 </button>
@@ -468,7 +643,10 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                 type="button"
                 aria-pressed={invertPlate}
                 className={`pixel-switch-btn ${invertPlate ? 'is-on' : ''}`}
-                onClick={() => setInvertPlate((v) => !v)}
+                onClick={() => {
+                  playClick();
+                  setInvertPlate((v) => !v);
+                }}
               >
                 ◐ INVERT
               </button>
@@ -476,7 +654,10 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                 type="button"
                 aria-pressed={showScale}
                 className={`pixel-switch-btn ${showScale ? 'is-on' : ''}`}
-                onClick={() => setShowScale((v) => !v)}
+                onClick={() => {
+                  playClick();
+                  setShowScale((v) => !v);
+                }}
               >
                 ⌖ SCALE
               </button>
@@ -484,7 +665,10 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                 type="button"
                 className="pixel-switch-btn"
                 disabled={isViewDefault}
-                onClick={resetView}
+                onClick={() => {
+                  playClick();
+                  resetView();
+                }}
               >
                 ↺ RESET VIEW
               </button>
@@ -590,7 +774,7 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                   <button
                     type="button"
                     className="pixel-mini-btn"
-                    onClick={resetTreeSession}
+                    onClick={() => resetTreeSession()}
                   >
                     RE-CLASSIFY THIS PLATE
                   </button>
@@ -662,7 +846,10 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                       data-testid="crt-field-guide-toggle"
                       aria-expanded={fieldGuideOpen}
                       className={`pixel-switch-btn ${fieldGuideOpen ? 'is-on' : ''}`}
-                      onClick={() => setFieldGuideOpen((v) => !v)}
+                      onClick={() => {
+                        playClick();
+                        setFieldGuideOpen((v) => !v);
+                      }}
                     >
                       [?] FIELD GUIDE
                     </button>
@@ -676,17 +863,87 @@ export const ClassificationCrtModal: React.FC<ClassificationCrtModalProps> = ({
                     className="crt-field-guide-drawer"
                     data-testid="crt-field-guide-drawer"
                   >
-                    <p className="crt-guide-tip">{activeTask.helpTip}</p>
-                    <div className="crt-guide-cards">
-                      {activeTask.fieldGuide.map((item) => (
-                        <div key={item.title} className="crt-guide-card">
-                          <MorphologyGlyph icon={item.icon} />
-                          <div>
-                            <strong>{item.title}</strong>
-                            <p>{item.body}</p>
+                    {activeTask.helpTip && <p className="crt-guide-tip">{activeTask.helpTip}</p>}
+                    {activeTask.helpMarkdown && (
+                      <SafeMarkdownBlock
+                        markdown={activeTask.helpMarkdown}
+                        className="crt-guide-tip safe-md-block"
+                      />
+                    )}
+                    {activeTask.fieldGuide.length > 0 && (
+                      <div className="crt-guide-cards">
+                        {activeTask.fieldGuide.map((item) => (
+                          <div key={item.title} className="crt-guide-card">
+                            <MorphologyGlyph icon={item.icon} />
+                            <div>
+                              <strong>{item.title}</strong>
+                              <p>{item.body}</p>
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                    )}
+                    {workflow.projectFieldGuide && workflow.projectFieldGuide.length > 0 && (
+                      <div className="crt-project-guide-list">
+                        <span className="crt-guide-links-label">
+                          PROJECT FIELD GUIDE ({workflow.projectFieldGuide.length})
+                        </span>
+                        {workflow.projectFieldGuide.map((item) => (
+                          <details key={item.title} className="crt-project-guide-item">
+                            <summary>{item.title}</summary>
+                            {item.contentMarkdown && (
+                              <SafeMarkdownBlock markdown={item.contentMarkdown} />
+                            )}
+                          </details>
+                        ))}
+                      </div>
+                    )}
+                    <div className="crt-guide-links-bar" data-testid="crt-field-guide-links">
+                      {activeTask.referenceLinks && activeTask.referenceLinks.length > 0 && (
+                        <div className="crt-guide-links-row">
+                          <span className="crt-guide-links-label">
+                            REAL EXAMPLES ON ZOONIVERSE:
+                          </span>
+                          {activeTask.referenceLinks.map((refLink) => (
+                            <a
+                              key={refLink.url}
+                              href={refLink.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="pixel-mini-btn btn-cyan pixel-ext-link"
+                            >
+                              {refLink.label} ↗
+                            </a>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                      <div className="crt-guide-links-row">
+                        <span className="crt-guide-links-label">ZOONIVERSE GUIDES:</span>
+                        <a
+                          href={GALAXY_ZOO_HELP_GUIDE_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="pixel-mini-btn pixel-ext-link"
+                        >
+                          NEW TO GALAXY ZOO? HELP GUIDE ↗
+                        </a>
+                        <a
+                          href={GALAXY_ZOO_HELP_BOARD_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="pixel-mini-btn pixel-ext-link"
+                        >
+                          HELP BOARD ↗
+                        </a>
+                        <a
+                          href={GALAXY_ZOO_FAQ_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="pixel-mini-btn pixel-ext-link"
+                        >
+                          GALAXY ZOO FAQ ↗
+                        </a>
+                      </div>
                     </div>
                   </div>
                 )}

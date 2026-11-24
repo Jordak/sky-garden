@@ -79,6 +79,15 @@ interface DustPuff {
   life: number;
 }
 
+interface ShootingStar {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  age: number;
+  duration: number;
+}
+
 interface ObservatoryCutawayCanvasProps {
   readonly demoMode: DemoMode;
   readonly stardust: number;
@@ -91,6 +100,9 @@ interface ObservatoryCutawayCanvasProps {
   readonly skyEditMode: boolean;
   readonly exhibitionMode: boolean;
   readonly onTriggerStation: (station: StationId) => void;
+  readonly onPetCat?: () => void;
+  readonly onHop?: () => void;
+  readonly onCanvasMount?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> = ({
@@ -105,8 +117,19 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
   skyEditMode,
   exhibitionMode,
   onTriggerStation,
+  onPetCat,
+  onHop,
+  onCanvasMount,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const setCanvasNode = useCallback(
+    (node: HTMLCanvasElement | null) => {
+      canvasRef.current = node;
+      onCanvasMount?.(node);
+    },
+    [onCanvasMount],
+  );
 
   const propsRef = useRef({
     demoMode,
@@ -120,6 +143,8 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
     skyEditMode,
     exhibitionMode,
     onTriggerStation,
+    onPetCat,
+    onHop,
   });
   useEffect(() => {
     propsRef.current = {
@@ -134,6 +159,8 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
       skyEditMode,
       exhibitionMode,
       onTriggerStation,
+      onPetCat,
+      onHop,
     };
   }, [
     activeRoomProps,
@@ -141,6 +168,8 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
     demoMode,
     exhibitionMode,
     hemisphere,
+    onHop,
+    onPetCat,
     onTriggerStation,
     practiceCount,
     skyEditMode,
@@ -164,6 +193,9 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
   const keysRef = useRef({ left: false, right: false });
   const puffsRef = useRef<DustPuff[]>([]);
   const domeShutterFlashRef = useRef<number>(0);
+  const catHeartTimerRef = useRef<number>(0);
+  const shootingStarRef = useRef<ShootingStar | null>(null);
+  const nextShootingStarInRef = useRef<number>(6.5);
   const prevHemisphereRef = useRef<SceneHemisphere>(hemisphere);
 
   useEffect(() => {
@@ -232,6 +264,7 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
           p.vy = -132;
           p.grounded = false;
           spawnDust(p.x, p.y, 4);
+          propsRef.current.onHop?.();
         }
       } else if (key === 'e' || e.key === 'Enter' || key === 'w' || e.key === 'ArrowUp') {
         const nearest = findNearestStation(playerRef.current.x);
@@ -369,10 +402,61 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
       if (domeShutterFlashRef.current > 0) {
         domeShutterFlashRef.current = Math.max(0, domeShutterFlashRef.current - dt);
       }
+      if (catHeartTimerRef.current > 0) {
+        catHeartTimerRef.current = Math.max(0, catHeartTimerRef.current - dt);
+      }
+
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (!prefersReducedMotion) {
+        if (shootingStarRef.current) {
+          const star = shootingStarRef.current;
+          star.age += dt;
+          star.x += star.vx * dt;
+          star.y += star.vy * dt;
+          if (star.age >= star.duration) {
+            shootingStarRef.current = null;
+          }
+        } else {
+          nextShootingStarInRef.current -= dt;
+          if (nextShootingStarInRef.current <= 0) {
+            const leftToRight = Math.random() > 0.35;
+            shootingStarRef.current = {
+              x: leftToRight ? 54 + Math.random() * 140 : 140 + Math.random() * 120,
+              y: 22 + Math.random() * 44,
+              vx: leftToRight ? 88 + Math.random() * 34 : -(88 + Math.random() * 34),
+              vy: 30 + Math.random() * 16,
+              age: 0,
+              duration: 0.44,
+            };
+            nextShootingStarInRef.current = 9.5 + Math.random() * 6.5;
+          }
+        }
+      }
 
       // Clear entire canvas so Layer 1 sky + galaxies shine through the glasshouse panes!
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, NATIVE_W, NATIVE_H);
+
+      // Subtle ambient shooting star across the open dome pane
+      if (shootingStarRef.current && !prefersReducedMotion) {
+        const star = shootingStarRef.current;
+        const progress = star.age / star.duration;
+        const alpha = Math.sin(progress * Math.PI);
+        if (alpha > 0.04) {
+          const sx = Math.round(star.x);
+          const sy = Math.round(star.y);
+          const dir = star.vx >= 0 ? 1 : -1;
+          ctx.fillStyle = `rgba(179, 212, 255, ${(alpha * 0.55).toFixed(2)})`;
+          ctx.fillRect(sx - dir * 6, sy - 2, 2, 1);
+          ctx.fillRect(sx - dir * 3, sy - 1, 2, 1);
+          ctx.fillStyle = `rgba(255, 243, 214, ${(alpha * 0.95).toFixed(2)})`;
+          ctx.fillRect(sx, sy, 2, 1);
+        }
+      }
 
       // 1. Glasshouse Dome Ribs & Roof Arch (behind room props, framing the open sky)
       const archY = (x: number): number => {
@@ -649,9 +733,20 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
         const catFrame = sprites.catFrames[Math.floor(now / 1500) % 2];
         if (catFrame) {
           ctx.drawImage(catFrame, 274, 129);
-          // Tiny floating pixel Zzz
-          const zPhase = Math.floor(now / 900) % 3;
-          drawPixelText(ctx, 'Z', 287 + zPhase, 124 - zPhase * 2, PAL.starIce);
+          if (catHeartTimerRef.current > 0 || p.x >= 266) {
+            const hx = 281;
+            const hy = 121 - (Math.floor(now / 360) % 2);
+            ctx.fillStyle = PAL.rugRose;
+            ctx.fillRect(hx, hy, 2, 1);
+            ctx.fillRect(hx + 3, hy, 2, 1);
+            ctx.fillRect(hx, hy + 1, 5, 2);
+            ctx.fillRect(hx + 1, hy + 3, 3, 1);
+            ctx.fillRect(hx + 2, hy + 4, 1, 1);
+          } else {
+            // Tiny floating pixel Zzz
+            const zPhase = Math.floor(now / 900) % 3;
+            drawPixelText(ctx, 'Z', 287 + zPhase, 124 - zPhase * 2, PAL.starIce);
+          }
         }
       }
 
@@ -772,6 +867,19 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
     const nx = ((e.clientX - rect.left) / rect.width) * NATIVE_W;
     const ny = ((e.clientY - rect.top) / rect.height) * NATIVE_H;
 
+    // Gentle pet interaction when clicking the Ginger Observatory Cat
+    if (
+      propsRef.current.activeRoomProps.includes('cat-ginger') &&
+      nx >= 273 &&
+      nx <= 291 &&
+      ny >= 126 &&
+      ny <= 139
+    ) {
+      catHeartTimerRef.current = 2.6;
+      propsRef.current.onPetCat?.();
+      return;
+    }
+
     // Did the player click directly on one of the 5 observatory stations?
     const clickedStation = STATIONS.find(
       (st) => nx >= st.hitLeft && nx <= st.hitRight && ny >= st.hitTop && ny <= st.hitBottom,
@@ -808,7 +916,7 @@ export const ObservatoryCutawayCanvas: React.FC<ObservatoryCutawayCanvasProps> =
 
   return (
     <canvas
-      ref={canvasRef}
+      ref={setCanvasNode}
       width={NATIVE_W}
       height={NATIVE_H}
       className={`observatory-cutaway-canvas ${skyEditMode ? 'is-passthrough' : ''}`}

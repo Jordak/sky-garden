@@ -1,7 +1,13 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
+import { AUDIO_MUTED_STORAGE_KEY } from '../audio/observatoryAudio';
 import { DEMO_COLLECTION_ENTRIES, SOURCE_GALAXIES } from '../data/demoCatalog';
+import { buildPostcardMetadata } from '../export/postcardExporter';
+import {
+  fetchPublicPanoptesWorkflow,
+  parsePanoptesWorkflowJson,
+} from '../services/panoptesWorkflowAdapter';
 import {
   CORRUPT_BACKUP_KEY,
   loadScenesFromStorage,
@@ -527,5 +533,265 @@ describe('Sky Garden Side-On Pixel Observatory Prototype', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /FLAT/i }));
     expect(plateImg.style.filter).toBe('none');
+  });
+
+  it('surfaces contextual Zooniverse Talk #tag links and Help Guide / FAQ links in the Field Guide drawer', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+    fireEvent.click(screen.getByTestId('crt-field-guide-toggle'));
+
+    const linksBox = screen.getByTestId('crt-field-guide-links');
+    expect(within(linksBox).getByRole('link', { name: /#artifact examples/i })).toHaveAttribute(
+      'href',
+      'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/tags/artifact',
+    );
+    expect(
+      within(linksBox).getByRole('link', { name: /NEW TO GALAXY ZOO\? HELP GUIDE/i }),
+    ).toHaveAttribute('href', 'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/1268/570127');
+    expect(within(linksBox).getByRole('link', { name: /HELP BOARD/i })).toHaveAttribute(
+      'href',
+      'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/1268',
+    );
+    expect(within(linksBox).getByRole('link', { name: /GALAXY ZOO FAQ/i })).toHaveAttribute(
+      'href',
+      'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/about/faq',
+    );
+
+    // Advance T0 -> T2_EDGE -> T3_BAR and confirm contextual #tag pills update to bar tags
+    fireEvent.click(screen.getByRole('button', { name: /Features or Disk/i }));
+    expect(within(linksBox).getByRole('link', { name: /#edge-on examples/i })).toHaveAttribute(
+      'href',
+      'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/tags/edge-on',
+    );
+    fireEvent.click(screen.getByRole('button', { name: /No — Face-On \/ Inclined/i }));
+    expect(within(linksBox).getByRole('link', { name: /#strong-bar examples/i })).toHaveAttribute(
+      'href',
+      'https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/talk/tags/strong-bar',
+    );
+  });
+
+  it('builds accurate Observatory Postcard metadata and downloads a PNG from Quiet Gaze & Workbench', async () => {
+    const sandboxState = loadScenesFromStorage(undefined, 'sandbox').state;
+    const meta = buildPostcardMetadata(sandboxState.scenes.north);
+    expect(meta.title).toBe('Quiet Study of Rings & Bridges');
+    expect(meta.featuredCatalogNames).toEqual([
+      'NGC 4565',
+      'Arp 87 (NGC 3808A/B)',
+      'PGC 54559',
+    ]);
+    expect(meta.surveyCredits).toContain('DESI Legacy Imaging Surveys (CC BY 4.0)');
+    expect(meta.surveyCredits).toContain('Sloan Digital Sky Survey (CC BY 4.0)');
+
+    const fakeGrad = { addColorStop: vi.fn() };
+    const fakeCtx = {
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      font: '',
+      textAlign: 'left',
+      globalAlpha: 1,
+      globalCompositeOperation: 'source-over',
+      imageSmoothingEnabled: true,
+      createLinearGradient: vi.fn(() => fakeGrad),
+      createRadialGradient: vi.fn(() => fakeGrad),
+      fillRect: vi.fn(),
+      clearRect: vi.fn(),
+      strokeRect: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      fillText: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
+      rotate: vi.fn(),
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+
+    const origImage = window.Image;
+    class ImmediateFailImage {
+      crossOrigin = '';
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_val: string) {
+        Promise.resolve().then(() => this.onerror?.());
+      }
+    }
+    window.Image = ImmediateFailImage as unknown as typeof Image;
+
+    const getContextSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockReturnValue(fakeCtx);
+    const toDataUrlSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+      .mockReturnValue('data:image/png;base64,iVBORw0KGgo=');
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+
+      fireEvent.click(screen.getByRole('button', { name: /QUIET GAZE/i }));
+      fireEvent.click(screen.getByTestId('gaze-export-postcard-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toHaveTextContent(/Downloaded observatory postcard/i);
+      });
+      expect(toDataUrlSpy).toHaveBeenCalledWith('image/png');
+      expect(anchorClickSpy).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByRole('button', { name: /EXIT GAZE/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^WORKBENCH$/i }));
+      fireEvent.click(screen.getByTestId('workbench-export-postcard-btn'));
+
+      await waitFor(() => {
+        expect(anchorClickSpy).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      window.Image = origImage;
+      getContextSpy.mockRestore();
+      toDataUrlSpy.mockRestore();
+      anchorClickSpy.mockRestore();
+    }
+  });
+
+  it('adapts read-only Panoptes workflow JSON & public API responses safely inside the CRT classifier', async () => {
+    const samplePanoptesEnvelope = {
+      workflows: [
+        {
+          id: '20751',
+          version: '3.12',
+          display_name: 'Galaxy Zoo Cosmic Dawn Preview',
+          first_task: 'T0',
+          strings: {
+            'T0.question': 'Does the galaxy have a clean **bulge** or a *bar*?',
+            'T0.help': 'See [Galaxy Zoo FAQ](https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/about/faq) before deciding.',
+            'T0.answers.0.label': 'Strong Bar',
+            'T0.answers.1.label': 'Star or Artifact',
+          },
+          tasks: {
+            T0: {
+              type: 'single',
+              question: 'T0.question',
+              help: 'T0.help',
+              answers: [
+                { label: 'T0.answers.0.label', next: 'T_DRAW' },
+                { label: 'T0.answers.1.label', next: null },
+              ],
+            },
+            T_DRAW: {
+              type: 'drawing',
+              question: 'Draw spiral arms',
+              answers: [],
+            },
+          },
+        },
+      ],
+      field_guides: [
+        {
+          id: '99',
+          items: [
+            {
+              title: 'Sample Bar Note',
+              content: 'Look for a bright linear stellar **bar**.',
+            },
+          ],
+        },
+      ],
+    };
+
+    const parsed = parsePanoptesWorkflowJson(JSON.stringify(samplePanoptesEnvelope));
+    expect('workflow' in parsed).toBe(true);
+    if ('workflow' in parsed) {
+      expect(parsed.workflow.id).toBe('20751');
+      expect(parsed.workflow.tasks.T0.answers[0].next).toBe('');
+      expect(parsed.skippedTaskIds).toEqual(['T_DRAW']);
+      expect(parsed.warnings).toHaveLength(2);
+    }
+
+    // Verify public Panoptes fetch uses strictly GET with JSON:API v1 Accept header
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => samplePanoptesEnvelope,
+    });
+    const fetched = await fetchPublicPanoptesWorkflow('20751', fetchMock as unknown as typeof fetch);
+    expect(fetchMock).toHaveBeenCalledWith('https://www.zooniverse.org/api/workflows/20751', {
+      method: 'GET',
+      headers: { Accept: 'application/vnd.api+json; version=1' },
+    });
+    expect('workflow' in fetched).toBe(true);
+
+    // Load offline Panoptes JSON inside the live CRT modal and verify walkthrough + reset
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^CLASSIFY$/i }));
+    fireEvent.click(screen.getByTestId('crt-workflow-source-toggle'));
+    fireEvent.change(screen.getByTestId('panoptes-json-input'), {
+      target: { value: JSON.stringify(samplePanoptesEnvelope) },
+    });
+    fireEvent.click(screen.getByTestId('panoptes-json-load-btn'));
+
+    expect(screen.getByTestId('crt-workflow-disclosure')).toHaveTextContent(/PANOPTES READ-ONLY · #20751/i);
+    expect(screen.getByTestId('panoptes-adapter-warnings')).toHaveTextContent(/Skipped non-single task "T_DRAW"/i);
+
+    fireEvent.click(screen.getByTestId('crt-field-guide-toggle'));
+    expect(screen.getByTestId('crt-field-guide-drawer')).toHaveTextContent(/Sample Bar Note/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /Strong Bar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /LOG PRACTICE OBSERVATION/i }));
+
+    const stored = loadScenesFromStorage(undefined, 'progression').state;
+    expect(stored.practiceLog[0].workflowId).toBe('20751');
+    expect(stored.practiceLog[0].annotations?.[0]).toMatchObject({
+      task: 'T0',
+      value: 0,
+      answerLabel: 'Strong Bar',
+    });
+
+    fireEvent.click(screen.getByTestId('panoptes-reset-demo-btn'));
+    expect(screen.getByTestId('crt-workflow-disclosure')).toHaveTextContent(
+      /OFFLINE CALIBRATION · NO ML IN LOOP/i,
+    );
+  });
+
+  it('persists Web Audio mute preference and bundles M87 smooth elliptical plus HD 108642 foreground star calibration plates', () => {
+    render(<App />);
+
+    const audioBtn = screen.getByTestId('top-audio-toggle-btn');
+    expect(audioBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(audioBtn).toHaveTextContent('♪ SFX ON');
+
+    fireEvent.click(audioBtn);
+    expect(audioBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(audioBtn).toHaveTextContent('♪ SFX OFF');
+    expect(window.localStorage.getItem(AUDIO_MUTED_STORAGE_KEY)).toBe('true');
+
+    // Sandbox Star Atlas includes all 10 bundled subjects including M87 & HD 108642
+    fireEvent.click(screen.getByTestId('mode-sandbox-btn'));
+    fireEvent.click(screen.getByRole('button', { name: /STAR ATLAS/i }));
+    const atlasList = screen.getByRole('list', { name: /Demo Galaxy Collection/i });
+    expect(within(atlasList).getAllByRole('listitem')).toHaveLength(10);
+    expect(screen.getByTestId('collection-card-src-m87')).toBeInTheDocument();
+    expect(screen.getByTestId('collection-card-src-hd-108642')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('collection-card-src-m87'));
+    expect(screen.getByTestId('real-coordinates-box')).toHaveTextContent('Virgo');
+
+    fireEvent.click(screen.getByTestId('collection-card-src-hd-108642'));
+    expect(screen.getByTestId('real-coordinates-box')).toHaveTextContent('Coma Berenices');
+
+    // Clear All Local Data resets audio mute state too
+    fireEvent.click(screen.getByRole('button', { name: /CLOSE ATLAS/i }));
+    fireEvent.click(screen.getByTestId('top-ethics-btn'));
+    fireEvent.click(screen.getByTestId('wipe-all-data-btn'));
+    fireEvent.click(screen.getByTestId('confirm-wipe-all-btn'));
+    expect(window.localStorage.getItem(AUDIO_MUTED_STORAGE_KEY)).toBeNull();
+    expect(screen.getByTestId('top-audio-toggle-btn')).toHaveTextContent('♪ SFX ON');
   });
 });

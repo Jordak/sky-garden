@@ -1,4 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  loadAudioMuted,
+  playCatPurr,
+  playClick,
+  playDomeRotate,
+  playHop,
+  playPlaceGalaxy,
+  saveAudioMuted,
+} from './audio/observatoryAudio';
 import { ClassificationCrtModal } from './components/ClassificationCrtModal';
 import { EthicsCharterModal } from './components/EthicsCharterModal';
 import { ObservatoryCutawayCanvas } from './components/ObservatoryCutawayCanvas';
@@ -8,6 +17,7 @@ import { SkyEditSatchelHud } from './components/SkyEditSatchelHud';
 import { StarAtlasModal } from './components/StarAtlasModal';
 import { WorkbenchModal } from './components/WorkbenchModal';
 import { CELESTIAL_DECOR_ITEMS, NEBULA_LAYERS, ROOM_PROPS, SKY_BACKGROUNDS, WINDOW_FRAMES } from './data/demoCatalog';
+import { downloadObservatoryPostcardPng } from './export/postcardExporter';
 import { useSkyGardenState } from './state/useSkyGardenState';
 import { serializeScenesToJson } from './storage/sceneStorage';
 import type { RoomPropId, StationId } from './types/skyGarden';
@@ -53,7 +63,9 @@ export const App: React.FC = () => {
   const [exhibitionMode, setExhibitionMode] = useState<boolean>(false);
   const [confirmingReset, setConfirmingReset] = useState<boolean>(false);
   const [ethicsModalOpen, setEthicsModalOpen] = useState<boolean>(false);
+  const [audioMuted, setAudioMuted] = useState<boolean>(() => loadAudioMuted());
   const [statusToast, setStatusToast] = useState<string | null>(null);
+  const roomCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const skyEditMode = activeStation === 'telescope' && !exhibitionMode;
 
@@ -131,6 +143,7 @@ export const App: React.FC = () => {
   const handleTriggerStation = useCallback(
     (station: StationId) => {
       if (station === 'dome-wheel') {
+        playDomeRotate();
         const next = toggleHemisphere();
         setStatusToast(
           next === 'north'
@@ -139,6 +152,7 @@ export const App: React.FC = () => {
         );
         return;
       }
+      playClick();
       setActiveStation(station);
     },
     [toggleHemisphere],
@@ -209,6 +223,33 @@ export const App: React.FC = () => {
     URL.revokeObjectURL(url);
     setStatusToast('Saved observatory & sky layout to JSON.');
   };
+
+  const handleExportPostcard = useCallback(async () => {
+    playClick();
+    const res = await downloadObservatoryPostcardPng({
+      scene: activeScene,
+      roomCanvas: roomCanvasRef.current,
+    });
+    if (res.ok && res.filename) {
+      setStatusToast(`Downloaded observatory postcard "${res.filename}".`);
+    } else {
+      setStatusToast(res.error ?? 'Could not generate observatory postcard PNG.');
+    }
+  }, [activeScene]);
+
+  const handleToggleAudioMute = useCallback(() => {
+    const nextMuted = !audioMuted;
+    saveAudioMuted(nextMuted);
+    setAudioMuted(nextMuted);
+    if (!nextMuted) {
+      playClick();
+    }
+  }, [audioMuted]);
+
+  const handlePetCat = useCallback(() => {
+    playCatPurr();
+    setStatusToast('The ginger observatory cat purrs softly.');
+  }, []);
 
   const handleImportFile = async (file: File) => {
     try {
@@ -373,6 +414,27 @@ export const App: React.FC = () => {
             )}
             <button
               type="button"
+              data-testid="top-audio-toggle-btn"
+              aria-pressed={!audioMuted}
+              className={`pixel-hud-btn ${!audioMuted ? 'is-active' : ''}`}
+              onClick={handleToggleAudioMute}
+              title="Toggle gentle Web Audio synthesizer sound effects"
+            >
+              {audioMuted ? '♪ SFX OFF' : '♪ SFX ON'}
+            </button>
+            {exhibitionMode && (
+              <button
+                type="button"
+                data-testid="gaze-export-postcard-btn"
+                className="pixel-hud-btn"
+                onClick={handleExportPostcard}
+                title="Render and download a PNG observatory postcard with survey credits"
+              >
+                ⤓ EXPORT POSTCARD (PNG)
+              </button>
+            )}
+            <button
+              type="button"
               data-testid="top-ethics-btn"
               aria-pressed={ethicsModalOpen}
               className={`pixel-hud-btn ${ethicsModalOpen ? 'is-active' : ''}`}
@@ -442,10 +504,15 @@ export const App: React.FC = () => {
             skyEditMode={skyEditMode}
             exhibitionMode={exhibitionMode}
             onTriggerStation={handleTriggerStation}
+            onPetCat={handlePetCat}
+            onHop={playHop}
+            onCanvasMount={(node) => {
+              roomCanvasRef.current = node;
+            }}
           />
 
         {/* Non-destructive Pixel Toast / Storage Warning */}
-        {(storageWarning || statusToast) && !exhibitionMode && (
+        {((storageWarning && !exhibitionMode) || statusToast) && (
           <div className="pixel-toast-banner" role="status">
             <span>{storageWarning ?? statusToast}</span>
             <button
@@ -474,6 +541,7 @@ export const App: React.FC = () => {
             canUndo={canUndo}
             canRedo={canRedo}
             onPlaceItem={(kind, refId) => {
+              playPlaceGalaxy();
               placeItem(kind, refId);
             }}
             onUnlockDecor={handleUnlockDecor}
@@ -502,6 +570,7 @@ export const App: React.FC = () => {
             practiceCount={scenesState.practiceLog.length}
             onRecordObservation={recordPracticeObservation}
             onHangGalaxyAtScope={(collectionEntryId) => {
+              playPlaceGalaxy();
               placeItem('galaxy', collectionEntryId);
               setActiveStation('telescope');
             }}
@@ -519,6 +588,7 @@ export const App: React.FC = () => {
             observedSourceIds={observedSourceIds}
             onSelectEntry={setInspectedCollectionEntryId}
             onHangInSky={(entryId) => {
+              playPlaceGalaxy();
               placeItem('galaxy', entryId);
               setActiveStation('telescope');
             }}
@@ -542,6 +612,7 @@ export const App: React.FC = () => {
             onUnlockDecor={handleUnlockDecor}
             onSelectOrUnlockAppearance={handleSelectOrUnlockAppearance}
             onExportJson={handleExportJson}
+            onExportPostcard={handleExportPostcard}
             onImportJsonFile={handleImportFile}
             onResetDemo={() => setConfirmingReset(true)}
             onClose={() => setActiveStation(null)}
@@ -571,6 +642,7 @@ export const App: React.FC = () => {
             onExportJson={handleExportJson}
             onWipeAllLocalData={() => {
               wipeAllLocalData();
+              setAudioMuted(loadAudioMuted());
               setEthicsModalOpen(false);
               setActiveStation(null);
               setStatusToast('Cleared all local Sky Garden saves (Progression & Sandbox).');

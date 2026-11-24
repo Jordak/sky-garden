@@ -14,6 +14,8 @@ All astronomical cutouts bundled in `public/assets/galaxies/` are open-licensed 
 | `public/assets/galaxies/hoags-object.jpg` | PGC 54559 (Hoag's Object) | Sloan Digital Sky Survey DR18 | Verified ICRS J2000 (`15h 17m 14.3s`, `+21° 35′ 09″`, Serpens) | CC BY 4.0 — SDSS Collaboration (`https://www.sdss.org`) |
 | `public/assets/galaxies/field-subject-alpha.jpg` | Demo Subject GZ-88412 | Sloan Digital Sky Survey DR18 cutout (field centered near `224.2527°, +24.6115°`, VV 340) | Intentionally configured as `unavailable` to test missing workflow metadata handling | CC BY 4.0 — SDSS Collaboration (`https://www.sdss.org`) |
 | `public/assets/galaxies/field-subject-beta.jpg` | Demo Subject GZ-90347 | DESI Legacy Imaging Surveys DR9 cutout (field centered near `165.9721°, +40.8497°`, Arp 148) | Intentionally configured as `unverified` to test withheld candidate coordinate handling | CC BY 4.0 — Legacy Surveys / D. Lang (Perimeter Institute) |
+| `public/assets/galaxies/m87.jpg` | M87 (NGC 4486) | Sloan Digital Sky Survey DR18 | Verified ICRS J2000 (`12h 30m 49.4s`, `+12° 23′ 28″`, Virgo) | CC BY 4.0 — SDSS Collaboration (`https://www.sdss.org`) |
+| `public/assets/galaxies/hd-108642.jpg` | HD 108642 (HIP 60880) | DESI Legacy Imaging Surveys DR10 | Verified ICRS J2000 (`12h 28m 38.2s`, `+26° 13′ 37″`, Coma Berenices) | CC BY 4.0 — Legacy Surveys / D. Lang (Perimeter Institute) |
 
 ## Survey Acknowledgments
 
